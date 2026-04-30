@@ -22,9 +22,13 @@ $settings = [
     'github_repo_owner' => '',
     'github_repo_name' => '',
     'github_repo_path' => '',
+    'webdav_url' => '',
+    'webdav_username' => '',
+    'webdav_password' => '',
+    'webdav_path' => 'images',
     'base_url' => '',
     'require_login' => false,
-    'default_storage' => 'local' // 默认存储类型：local 或 github
+    'default_storage' => 'local' // 默认存储类型：local、github 或 webdav
 ];
 
 if (file_exists($settingsFile)) {
@@ -41,6 +45,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'github_repo_owner' => trim($_POST['github_repo_owner'] ?? ''),
         'github_repo_name' => trim($_POST['github_repo_name'] ?? ''),
         'github_repo_path' => trim($_POST['github_repo_path'] ?? ''),
+        'webdav_url' => trim($_POST['webdav_url'] ?? ''),
+        'webdav_username' => trim($_POST['webdav_username'] ?? ''),
+        'webdav_password' => trim($_POST['webdav_password'] ?? ''),
+        'webdav_path' => trim($_POST['webdav_path'] ?? 'images'),
         'base_url' => trim($_POST['base_url'] ?? ''),
         'require_login' => isset($_POST['require_login']) && $_POST['require_login'] === '1',
         'default_storage' => trim($_POST['default_storage'] ?? 'local')
@@ -54,6 +62,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($newSettings['default_storage'] === 'github') {
             if (empty($newSettings['github_token']) || empty($newSettings['github_repo_owner']) || empty($newSettings['github_repo_name'])) {
                 $message = '警告：选择了GitHub存储，但GitHub配置不完整。系统将使用本地存储。';
+            }
+        }
+        
+        // 如果选择了WebDAV存储，但WebDAV配置不完整，给出警告
+        if ($newSettings['default_storage'] === 'webdav') {
+            if (empty($newSettings['webdav_url']) || empty($newSettings['webdav_username']) || empty($newSettings['webdav_password'])) {
+                $message = '警告：选择了WebDAV存储，但WebDAV配置不完整。系统将使用本地存储。';
             }
         }
 
@@ -177,6 +192,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 </div>
                             </div>
 
+                            <!-- WebDAV配置区域 -->
+                            <div class="card mb-4" style="border-left: 4px solid #17a2b8;">
+                                <div class="card-header">
+                                    <h6><i class="bi bi-cloud"></i> WebDAV配置</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label for="webdav_url" class="form-label">WebDAV服务器地址</label>
+                                        <input type="url" class="form-control" id="webdav_url" name="webdav_url" 
+                                               value="<?php echo htmlspecialchars($settings['webdav_url']); ?>" 
+                                               placeholder="https://dav.example.com/webdav">
+                                        <div class="form-text">
+                                            WebDAV服务器的完整URL地址
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label for="webdav_username" class="form-label">用户名</label>
+                                                <input type="text" class="form-control" id="webdav_username" name="webdav_username" 
+                                                       value="<?php echo htmlspecialchars($settings['webdav_username']); ?>" 
+                                                       placeholder="WebDAV用户名">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label for="webdav_password" class="form-label">密码</label>
+                                                <input type="password" class="form-control" id="webdav_password" name="webdav_password" 
+                                                       value="<?php echo htmlspecialchars($settings['webdav_password']); ?>" 
+                                                       placeholder="WebDAV密码">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label for="webdav_path" class="form-label">存储路径</label>
+                                                <input type="text" class="form-control" id="webdav_path" name="webdav_path" 
+                                                       value="<?php echo htmlspecialchars($settings['webdav_path']); ?>" 
+                                                       placeholder="images">
+                                                <div class="form-text">
+                                                    图片在WebDAV服务器中的存储目录
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                             <!-- 域名配置区域 -->
                             <div class="card domain-section mb-4">
                                 <div class="card-header">
@@ -221,8 +284,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                                 <?php endif; ?>
                                             </label>
                                         </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="default_storage" id="storage_webdav" value="webdav"
+                                                   <?php echo ($settings['default_storage'] ?? 'local') === 'webdav' ? 'checked' : ''; ?>
+                                                   <?php echo empty($settings['webdav_url']) || empty($settings['webdav_username']) || empty($settings['webdav_password']) ? 'disabled' : ''; ?>>
+                                            <label class="form-check-label" for="storage_webdav">
+                                                <strong>WebDAV存储</strong> - 图片上传到WebDAV服务器
+                                                <?php if (empty($settings['webdav_url']) || empty($settings['webdav_username']) || empty($settings['webdav_password'])): ?>
+                                                    <span class="badge bg-info text-dark ms-2">需先配置WebDAV</span>
+                                                <?php endif; ?>
+                                            </label>
+                                        </div>
                                         <div class="form-text">
-                                            选择图片的默认存储位置。如果选择GitHub存储但配置不完整，系统将自动使用本地存储。
+                                            选择图片的默认存储位置。如果选择的存储方式配置不完整，系统将自动使用本地存储。
                                         </div>
                                     </div>
                                 </div>
@@ -276,12 +350,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <li><strong>存储路径:</strong> <?php echo empty($settings['github_repo_path']) ? 'images' : $settings['github_repo_path']; ?></li>
                                 </ul>
 
+                                <h6 class="mt-3">WebDAV配置状态</h6>
+                                <ul class="list-unstyled">
+                                    <li><strong>服务器地址:</strong> <?php echo empty($settings['webdav_url']) ? '<span class="text-danger">未配置</span>' : '<span class="text-success">' . htmlspecialchars($settings['webdav_url']) . '</span>'; ?></li>
+                                    <li><strong>用户名:</strong> <?php echo empty($settings['webdav_username']) ? '<span class="text-danger">未配置</span>' : '<span class="text-success">' . htmlspecialchars($settings['webdav_username']) . '</span>'; ?></li>
+                                    <li><strong>存储路径:</strong> <?php echo empty($settings['webdav_path']) ? 'images' : $settings['webdav_path']; ?></li>
+                                </ul>
+
                                 <h6 class="mt-3">存储配置状态</h6>
                                 <ul class="list-unstyled">
                                     <li><strong>默认存储:</strong>
                                         <?php
                                         $defaultStorage = $settings['default_storage'] ?? 'local';
-                                        if ($defaultStorage === 'github' && (!empty($settings['github_token']) && !empty($settings['github_repo_owner']) && !empty($settings['github_repo_name']))) {
+                                        if ($defaultStorage === 'webdav' && (!empty($settings['webdav_url']) && !empty($settings['webdav_username']) && !empty($settings['webdav_password']))) {
+                                            echo '<span class="text-info">WebDAV存储</span>';
+                                        } elseif ($defaultStorage === 'webdav') {
+                                            echo '<span class="text-warning">WebDAV存储（配置不完整，实际使用本地存储）</span>';
+                                        } elseif ($defaultStorage === 'github' && (!empty($settings['github_token']) && !empty($settings['github_repo_owner']) && !empty($settings['github_repo_name']))) {
                                             echo '<span class="text-success">GitHub存储</span>';
                                         } elseif ($defaultStorage === 'github') {
                                             echo '<span class="text-warning">GitHub存储（配置不完整，实际使用本地存储）</span>';

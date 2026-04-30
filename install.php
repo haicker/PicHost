@@ -194,13 +194,15 @@ function initializeDatabase() {
             id INT AUTO_INCREMENT PRIMARY KEY,
             filename VARCHAR(255) NOT NULL,
             original_name VARCHAR(255) NOT NULL,
+            tags TEXT,
             description TEXT,
             file_size INT NOT NULL,
             mime_type VARCHAR(100) NOT NULL,
             github_url VARCHAR(500),
+            webdav_url VARCHAR(500),
             local_path VARCHAR(500),
             upload_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-            storage_type ENUM('local', 'github') DEFAULT 'local'
+            storage_type ENUM('local', 'github', 'webdav') DEFAULT 'local'
         )";
         
         $pdo->exec($sql);

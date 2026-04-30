@@ -5,17 +5,7 @@ require_once 'includes/functions.php';
 header('Content-Type: application/json');
 
 // 加载设置
-$settingsFile = 'config/settings.json';
-$settings = [
-    'require_login' => false
-];
-
-if (file_exists($settingsFile)) {
-    $savedSettings = json_decode(file_get_contents($settingsFile), true);
-    if ($savedSettings) {
-        $settings = array_merge($settings, $savedSettings);
-    }
-}
+$settings = getSettings();
 
 // 检查是否需要登录才能上传
 $requireLogin = $settings['require_login'] ?? false;
@@ -56,19 +46,31 @@ try {
     }
     
     $githubUrl = null;
+    $webdavUrl = null;
     $storageType = 'local';
 
     // 获取默认存储类型
     $defaultStorage = $settings['default_storage'] ?? 'local';
 
     // 根据配置决定存储方式
-    if ($defaultStorage === 'github' && isGitHubConfigured()) {
+    $fallbackMessage = '';
+    if ($defaultStorage === 'webdav' && isWebDAVConfigured()) {
+        $webdavUrl = uploadToWebDAV($localPath, $filename);
+        if ($webdavUrl) {
+            $storageType = 'webdav';
+        } else {
+            // WebDAV上传失败，回退到本地存储
+            error_log("WebDAV upload failed, falling back to local storage");
+            $fallbackMessage = 'WebDAV 服务器连接失败，已自动回退到本地存储';
+        }
+    } elseif ($defaultStorage === 'github' && isGitHubConfigured()) {
         $githubUrl = uploadToGitHub($localPath, $filename);
         if ($githubUrl) {
             $storageType = 'github';
         } else {
             // GitHub上传失败，回退到本地存储
             error_log("GitHub upload failed, falling back to local storage");
+            $fallbackMessage = 'GitHub 上传失败，已自动回退到本地存储';
         }
     }
     
@@ -79,13 +81,21 @@ try {
         'file_size' => $file['size'],
         'mime_type' => $mimeType,
         'github_url' => $githubUrl,
+        'webdav_url' => $webdavUrl,
         'local_path' => $localPath,
         'storage_type' => $storageType
     ];
     
     if (saveImageToDB($imageData)) {
+        // 获取刚插入的图片ID
+        $db = getDBConnection();
+        $imageId = $db->lastInsertId();
+        
         // 生成正确的图片访问URL
-        if ($githubUrl) {
+        if ($webdavUrl) {
+            // WebDAV存储使用代理链接
+            $imageUrl = rtrim(getConfig('base_url'), '/') . '/proxy.php?id=' . $imageId;
+        } elseif ($githubUrl) {
             $imageUrl = $githubUrl;
         } else {
             // 确保本地图片URL格式正确
@@ -95,10 +105,11 @@ try {
         
         $response = [
             'success' => true,
-            'message' => '图片上传成功',
+            'message' => '图片上传成功' . ($fallbackMessage ? ' (' . $fallbackMessage . ')' : ''),
             'url' => $imageUrl,
             'storage_type' => $storageType,
-            'tags' => $tags
+            'tags' => $tags,
+            'fallback_message' => $fallbackMessage
         ];
     } else {
         throw new Exception('数据库保存失败');

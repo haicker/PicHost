@@ -16,6 +16,9 @@ if (!isAdminLoggedIn()) {
 $action = $_GET['action'] ?? '';
 $message = '';
 
+// 获取系统设置
+$settings = getSettings();
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['delete_image'])) {
         $imageId = $_POST['image_id'];
@@ -117,9 +120,19 @@ foreach ($images as $image) {
                             <span class="badge bg-info"><?php echo formatFileSize($totalSize); ?></span>
                         </div>
                         <div class="d-flex justify-content-between align-items-center">
-                            <span>存储类型:</span>
-                            <span class="badge bg-secondary">本地 + GitHub</span>
-                        </div>
+                        <span>当前存储方式:</span>
+                        <span class="badge bg-secondary">
+                            <?php 
+                            $defaultStorage = $settings['default_storage'] ?? 'local';
+                            $storageLabels = [
+                                'local' => '本地存储',
+                                'github' => 'GitHub存储',
+                                'webdav' => 'WebDAV存储'
+                            ];
+                            echo $storageLabels[$defaultStorage] ?? '本地存储';
+                            ?>
+                        </span>
+                    </div>
                     </div>
                 </div>
 
@@ -217,7 +230,7 @@ foreach ($images as $image) {
                                 <?php foreach ($images as $image): ?>
                                     <div class="col-lg-4 col-md-6 mb-4">
                                         <div class="card h-100 image-card">
-                                            <img src="<?php echo $image['url'] ?? $image['github_url'] ?? $image['local_path']; ?>" 
+                                            <img src="<?php echo $image['url']; ?>" 
                                                  class="card-img-top" alt="<?php echo htmlspecialchars($image['description']); ?>"
                                                  style="height: 200px; object-fit: cover;">
                                             <div class="card-body">
@@ -246,7 +259,7 @@ foreach ($images as $image) {
                                                     <div class="mb-1"><i class="fas fa-weight me-1"></i>大小: <?php echo formatFileSize($image['file_size']); ?></div>
                                                     <div class="mb-1"><i class="fas fa-file-image me-1"></i>类型: <?php echo $image['mime_type']; ?></div>
                                                     <div class="mb-1"><i class="fas fa-clock me-1"></i>时间: <?php echo date('Y-m-d H:i', strtotime($image['upload_time'])); ?></div>
-                                                    <div><i class="fas fa-database me-1"></i>存储: <span class="badge bg-<?php echo $image['storage_type'] === 'github' ? 'success' : 'warning'; ?>">
+                                                    <div><i class="fas fa-database me-1"></i>存储: <span class="badge bg-<?php echo $image['storage_type'] === 'github' ? 'success' : ($image['storage_type'] === 'webdav' ? 'info' : 'warning'); ?>">
                                                         <?php echo $image['storage_type']; ?>
                                                     </span></div>
                                                 </div>
@@ -254,20 +267,21 @@ foreach ($images as $image) {
                                             <div class="card-footer bg-transparent border-top-0">
                                                 <div class="btn-group w-100">
                                                     <button class="btn btn-outline-primary copy-url" 
-                                                            data-url="<?php echo $image['url'] ?? $image['github_url'] ?? $image['local_path']; ?>">
+                                                            data-url="<?php echo $image['url']; ?>">
                                                         <i class="fas fa-clipboard"></i>
                                                     </button>
-                                                    <a href="<?php echo $image['url'] ?? $image['github_url'] ?? $image['local_path']; ?>" 
-                                                       class="btn btn-outline-info" target="_blank">
+                                                    <button class="btn btn-outline-info border-2 border-info" 
+                                                            onclick="window.open('<?php echo $image['url']; ?>', '_blank')">
                                                         <i class="fas fa-eye"></i>
-                                                    </a>
-                                                    <form method="POST" class="d-inline" onsubmit="return confirm('确定删除这张图片吗？')">
-                                                        <input type="hidden" name="image_id" value="<?php echo $image['id']; ?>">
-                                                        <button type="submit" name="delete_image" class="btn btn-outline-danger">
-                                                            <i class="fas fa-trash"></i>
-                                                        </button>
-                                                    </form>
+                                                    </button>
+                                                    <button type="submit" name="delete_image" class="btn btn-outline-danger"
+                                                            form="deleteForm_<?php echo $image['id']; ?>">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
                                                 </div>
+                                                <form id="deleteForm_<?php echo $image['id']; ?>" method="POST" class="d-none" onsubmit="return confirm('确定删除这张图片吗？')">
+                                                    <input type="hidden" name="image_id" value="<?php echo $image['id']; ?>">
+                                                </form>
                                             </div>
                                         </div>
                                     </div>
@@ -293,7 +307,7 @@ foreach ($images as $image) {
                                             <?php foreach ($images as $image): ?>
                                                 <tr>
                                                     <td>
-                                                        <img src="<?php echo $image['url'] ?? $image['github_url'] ?? $image['local_path']; ?>" 
+                                                        <img src="<?php echo $image['url']; ?>" 
                                                              width="60" height="60" style="object-fit: cover; border-radius: 8px;" class="image-preview">
                                                     </td>
                                                     <td class="fw-bold"><?php echo htmlspecialchars($image['original_name']); ?></td>
@@ -318,7 +332,7 @@ foreach ($images as $image) {
                                                     <td><?php echo $image['mime_type']; ?></td>
                                                     <td><?php echo date('Y-m-d H:i', strtotime($image['upload_time'])); ?></td>
                                                     <td>
-                                                        <span class="badge bg-<?php echo $image['storage_type'] === 'github' ? 'success' : 'warning'; ?>">
+                                                        <span class="badge bg-<?php echo $image['storage_type'] === 'github' ? 'success' : ($image['storage_type'] === 'webdav' ? 'info' : 'warning'); ?>">
                                                             <?php echo $image['storage_type']; ?>
                                                         </span>
                                                     </td>

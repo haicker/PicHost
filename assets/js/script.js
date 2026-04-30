@@ -52,7 +52,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 const response = JSON.parse(xhr.responseText);
                 
                 if (response.success) {
-                    showAlert('图片上传成功！链接已自动复制到剪贴板', 'success');
+                    let alertMessage = '图片上传成功！链接已自动复制到剪贴板';
+                    let alertType = 'success';
+                    
+                    // 如果有回退消息，显示警告提示
+                    if (response.fallback_message) {
+                        alertMessage = '图片上传成功，但' + response.fallback_message;
+                        alertType = 'warning';
+                    }
+                    
+                    showAlert(alertMessage, alertType);
                     uploadForm.reset();
                     
                     copyToClipboard(response.url)
@@ -60,14 +69,18 @@ document.addEventListener('DOMContentLoaded', function() {
                             addImageToGallery({
                                 url: response.url,
                                 tags: tags,
-                                upload_time: new Date().toISOString()
+                                upload_time: new Date().toISOString(),
+                                storage_type: response.storage_type,
+                                fallback_message: response.fallback_message
                             });
                         })
                         .catch(() => {
                             addImageToGallery({
                                 url: response.url,
                                 tags: tags,
-                                upload_time: new Date().toISOString()
+                                upload_time: new Date().toISOString(),
+                                storage_type: response.storage_type,
+                                fallback_message: response.fallback_message
                             });
                             showAlert('图片上传成功！但链接复制失败，请手动复制', 'warning');
                         });
@@ -102,6 +115,24 @@ document.addEventListener('DOMContentLoaded', function() {
             ? tagsArray.map(tag => `<span class="badge bg-secondary me-1 mb-1">${escapeHtml(tag)}</span>`).join('')
             : '<span class="text-muted">无标签</span>';
         
+        // 存储类型显示
+        let storageTypeText = '';
+        let storageTypeClass = 'badge bg-secondary';
+        
+        switch(image.storage_type) {
+            case 'webdav':
+                storageTypeText = 'WebDAV存储';
+                storageTypeClass = 'badge bg-info';
+                break;
+            case 'github':
+                storageTypeText = 'GitHub存储';
+                storageTypeClass = 'badge bg-success';
+                break;
+            default:
+                storageTypeText = '本地存储';
+                storageTypeClass = 'badge bg-secondary';
+        }
+        
         container.innerHTML = `
             <div class="text-center mb-4">
                 <img src="${escapeHtml(image.url)}" class="img-fluid rounded shadow" 
@@ -111,6 +142,14 @@ document.addEventListener('DOMContentLoaded', function() {
             <div class="mb-3">
                 <label class="form-label fw-bold">标签:</label>
                 <div class="tags-container">${imageTags}</div>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label fw-bold">存储类型:</label>
+                <div>
+                    <span class="${storageTypeClass} me-2">${storageTypeText}</span>
+                    ${image.fallback_message ? `<small class="text-warning"><i class="fas fa-exclamation-triangle me-1"></i>${escapeHtml(image.fallback_message)}</small>` : ''}
+                </div>
             </div>
             
             <div class="mt-3">

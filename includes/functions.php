@@ -20,6 +20,9 @@ function getImages($limit = null, $offset = 0) {
     foreach ($images as &$image) {
         if ($image['storage_type'] === 'github' && !empty($image['github_url'])) {
             $image['url'] = $image['github_url'];
+        } elseif ($image['storage_type'] === 'webdav' && !empty($image['webdav_url'])) {
+            // 使用代理脚本访问 WebDAV 图片
+            $image['url'] = $baseUrl . '/proxy.php?id=' . $image['id'];
         } else {
             $localPath = ltrim($image['local_path'], '/');
             $image['url'] = $baseUrl . '/' . $localPath;
@@ -38,8 +41,8 @@ function getImageCount() {
 
 function saveImageToDB($imageData) {
     $db = getDBConnection();
-    $sql = "INSERT INTO images (filename, original_name, tags, file_size, mime_type, github_url, local_path, storage_type) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+    $sql = "INSERT INTO images (filename, original_name, tags, file_size, mime_type, github_url, webdav_url, local_path, storage_type) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
     $stmt = $db->prepare($sql);
     return $stmt->execute([
         $imageData['filename'],
@@ -48,9 +51,72 @@ function saveImageToDB($imageData) {
         $imageData['file_size'],
         $imageData['mime_type'],
         $imageData['github_url'],
+        $imageData['webdav_url'],
         $imageData['local_path'],
         $imageData['storage_type']
     ]);
+}
+
+function uploadToWebDAV($filePath, $filename) {
+    $webdavUrl = getConfig('webdav_url');
+    $webdavUsername = getConfig('webdav_username');
+    $webdavPassword = getConfig('webdav_password');
+    $webdavPath = getConfig('webdav_path');
+
+    if (empty($webdavUrl) || empty($webdavUsername) || empty($webdavPassword)) {
+        error_log("WebDAV upload failed: Missing required configuration");
+        return false;
+    }
+
+    if (!file_exists($filePath)) {
+        error_log("WebDAV upload failed: File not found - " . $filePath);
+        return false;
+    }
+
+    $remotePath = $webdavPath;
+    if (substr($remotePath, -1) !== '/') {
+        $remotePath .= '/';
+    }
+    $remotePath .= $filename;
+
+    $fullUrl = rtrim($webdavUrl, '/') . '/' . ltrim($remotePath, '/');
+
+    $fileContent = file_get_contents($filePath);
+    if ($fileContent === false) {
+        error_log("WebDAV upload failed: Could not read file - " . $filePath);
+        return false;
+    }
+
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $fullUrl);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'PUT');
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $fileContent);
+    curl_setopt($ch, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
+    curl_setopt($ch, CURLOPT_USERPWD, $webdavUsername . ':' . $webdavPassword);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Content-Type: application/octet-stream',
+        'User-Agent: PHP-Image-Hosting'
+    ]);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 60);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $error = curl_error($ch);
+    curl_close($ch);
+
+    error_log("WebDAV Upload Response - HTTP Code: " . $httpCode . ", URL: " . $fullUrl);
+    if ($error) {
+        error_log("cURL Error: " . $error);
+    }
+
+    if ($httpCode === 201 || $httpCode === 200 || $httpCode === 204) {
+        return $fullUrl;
+    }
+
+    return false;
 }
 
 function uploadToGitHub($filePath, $filename) {
@@ -141,11 +207,17 @@ function uploadToGitHub($filePath, $filename) {
         if (isset($responseData['content']['download_url'])) {
             return $responseData['content']['download_url'];
         } elseif (isset($responseData['content']['html_url'])) {
-            // 备用URL
-            return str_replace('github.com', 'raw.githubusercontent.com', $responseData['content']['html_url']);
+            // 将 html_url 转换为 raw URL
+            // https://github.com/owner/repo/blob/branch/path -> https://raw.githubusercontent.com/owner/repo/branch/path
+            $htmlUrl = $responseData['content']['html_url'];
+            $rawUrl = str_replace('github.com', 'raw.githubusercontent.com', $htmlUrl);
+            $rawUrl = str_replace('/blob/', '/', $rawUrl);
+            return $rawUrl;
         }
     }
-
+    
+    // 记录上传失败的详细信息
+    error_log("GitHub upload failed - HTTP Code: " . $httpCode . ", Response: " . $response);
     return false;
 }
 
@@ -284,7 +356,13 @@ function getSettings() {
         'github_repo_owner' => '',
         'github_repo_name' => '',
         'github_repo_path' => 'images',
-        'base_url' => ''
+        'webdav_url' => '',
+        'webdav_username' => '',
+        'webdav_password' => '',
+        'webdav_path' => 'images',
+        'base_url' => '',
+        'default_storage' => 'local',
+        'require_login' => false
     ];
     
     if (file_exists($settingsFile)) {
@@ -330,6 +408,15 @@ function isGitHubConfigured() {
     $repo = getConfig('github_repo_name');
 
     return !empty($token) && !empty($owner) && !empty($repo);
+}
+
+// 检查 WebDAV 配置是否完整
+function isWebDAVConfigured() {
+    $url = getConfig('webdav_url');
+    $username = getConfig('webdav_username');
+    $password = getConfig('webdav_password');
+
+    return !empty($url) && !empty($username) && !empty($password);
 }
 
 function formatFileSize($bytes) {

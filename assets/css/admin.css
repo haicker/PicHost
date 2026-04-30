@@ -151,6 +151,18 @@ body {
     color: white;
 }
 
+.btn-outline-info {
+    border: 2px solid #17a2b8;
+    color: #17a2b8;
+    background: transparent;
+}
+
+.btn-outline-info:hover {
+    background: #17a2b8;
+    border-color: #17a2b8;
+    color: white;
+}
+
 .btn-group .btn {
     border-radius: 0;
     min-width: 48px;
