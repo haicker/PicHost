@@ -357,13 +357,3 @@ foreach ($images as $image) {
     <script src="assets/js/admin.js"></script>
 </body>
 </html>
-
-<?php
-function formatFileSize($bytes) {
-    if ($bytes == 0) return '0 B';
-    $k = 1024;
-    $sizes = ['B', 'KB', 'MB', 'GB'];
-    $i = floor(log($bytes) / log($k));
-    return round($bytes / pow($k, $i), 2) . ' ' . $sizes[$i];
-}
-?>

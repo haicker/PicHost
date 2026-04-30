@@ -6,7 +6,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const dropArea = document.getElementById('dropArea');
     const fileInput = document.getElementById('image');
     
-    // 初始化拖放功能
+    let uploadCard = document.getElementById('uploadCard');
+    let uploadResult = document.getElementById('uploadResult');
+    
     initDragAndDrop();
     
     uploadForm.addEventListener('submit', function(e) {
@@ -15,7 +17,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const tags = document.getElementById('tags').value;
         
         if (!fileInput.files.length) {
-            alert('请选择要上传的图片');
+            showAlert('请选择要上传的图片', 'warning');
             return;
         }
         
@@ -29,6 +31,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         uploadProgress.style.display = 'block';
         progressBar.style.width = '0%';
+        progressBar.textContent = '0%';
         
         const xhr = new XMLHttpRequest();
         
@@ -52,34 +55,34 @@ document.addEventListener('DOMContentLoaded', function() {
                     showAlert('图片上传成功！链接已自动复制到剪贴板', 'success');
                     uploadForm.reset();
                     
-                    // 自动复制链接到剪贴板
-                    copyToClipboard(response.url).then(() => {
-                        addImageToGallery({
-                            url: response.url,
-                            tags: tags,
-                            upload_time: new Date().toISOString()
+                    copyToClipboard(response.url)
+                        .then(() => {
+                            addImageToGallery({
+                                url: response.url,
+                                tags: tags,
+                                upload_time: new Date().toISOString()
+                            });
+                        })
+                        .catch(() => {
+                            addImageToGallery({
+                                url: response.url,
+                                tags: tags,
+                                upload_time: new Date().toISOString()
+                            });
+                            showAlert('图片上传成功！但链接复制失败，请手动复制', 'warning');
                         });
-                    }).catch(() => {
-                        // 如果自动复制失败，仍然显示图片
-                        addImageToGallery({
-                            url: response.url,
-                            tags: tags,
-                            upload_time: new Date().toISOString()
-                        });
-                        showAlert('图片上传成功！但链接复制失败，请手动复制', 'warning');
-                    });
                 } else {
-                    showAlert('上传失败: ' + response.message, 'danger');
+                    showAlert('上传失败：' + response.message, 'danger');
                 }
             } catch (error) {
-                showAlert('上传失败: 服务器响应错误', 'danger');
+                showAlert('上传失败：服务器响应错误', 'danger');
             }
             
             uploadProgress.style.display = 'none';
         });
         
         xhr.addEventListener('error', function() {
-            showAlert('上传失败: 网络错误', 'danger');
+            showAlert('上传失败：网络错误', 'danger');
             uploadProgress.style.display = 'none';
         });
         
@@ -88,161 +91,89 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function addImageToGallery(image) {
-        // 获取上传结果显示区域
-        const uploadResult = document.getElementById('uploadResult');
         const container = document.getElementById('uploadedImageContainer');
+        if (!container) return;
         
-        // 清空之前的结果
-        container.innerHTML = '';
+        const tagsArray = image.tags && image.tags.trim() !== '' 
+            ? image.tags.split(',').map(tag => tag.trim()).filter(tag => tag)
+            : [];
         
-        // 创建图片显示区域
-        const imageDisplay = document.createElement('div');
-        imageDisplay.className = 'text-center mb-4';
+        const imageTags = tagsArray.length > 0
+            ? tagsArray.map(tag => `<span class="badge bg-secondary me-1 mb-1">${escapeHtml(tag)}</span>`).join('')
+            : '<span class="text-muted">无标签</span>';
         
-        const img = document.createElement('img');
-        img.className = 'img-fluid rounded shadow';
-        img.style.maxHeight = '300px';
-        img.src = image.url;
-        img.alt = image.tags || '图片';
-        
-        imageDisplay.appendChild(img);
-        
-        // 创建标签显示区域
-        const tagsSection = document.createElement('div');
-        tagsSection.className = 'mb-3';
-        
-        const tagsLabel = document.createElement('label');
-        tagsLabel.className = 'form-label fw-bold';
-        tagsLabel.textContent = '标签:';
-        
-        const tagsDisplay = document.createElement('div');
-        tagsDisplay.className = 'tags-container';
-        
-        if (image.tags && image.tags.trim() !== '') {
-            const tagsArray = image.tags.split(',').map(tag => tag.trim());
-            tagsArray.forEach(tag => {
-                if (tag) {
-                    const tagSpan = document.createElement('span');
-                    tagSpan.className = 'badge bg-secondary me-1 mb-1';
-                    tagSpan.textContent = tag;
-                    tagsDisplay.appendChild(tagSpan);
-                }
-            });
-        } else {
-            const noTags = document.createElement('span');
-            noTags.className = 'text-muted';
-            noTags.textContent = '无标签';
-            tagsDisplay.appendChild(noTags);
-        }
-
-        // 创建链接显示区域
-        const linkSection = document.createElement('div');
-        linkSection.className = 'mt-3';
-        
-        const linkLabel = document.createElement('label');
-        linkLabel.className = 'form-label fw-bold';
-        linkLabel.textContent = '图片链接:';
-        
-        const linkInput = document.createElement('input');
-        linkInput.type = 'text';
-        linkInput.className = 'form-control mb-2';
-        linkInput.value = image.url;
-        linkInput.readOnly = true;
-        linkInput.id = 'imageUrlInput';
-        
-        const copyBtn = document.createElement('button');
-        copyBtn.className = 'btn btn-primary';
-        copyBtn.textContent = '复制链接';
-        copyBtn.setAttribute('data-url', image.url);
-        copyBtn.addEventListener('click', copyUrlToClipboard);
-        
-        linkSection.appendChild(linkLabel);
-        linkSection.appendChild(document.createElement('br'));
-        linkSection.appendChild(linkInput);
-        linkSection.appendChild(document.createElement('br'));
-        linkSection.appendChild(copyBtn);
-        
-        // 组合所有元素
-        container.appendChild(imageDisplay);
-        
-        // 添加标签显示
-        tagsSection.appendChild(tagsLabel);
-        tagsSection.appendChild(document.createElement('br'));
-        tagsSection.appendChild(tagsDisplay);
-        container.appendChild(tagsSection);
-        
-        container.appendChild(linkSection);
-        
-        // 添加继续上传按钮
-        const continueUploadSection = document.createElement('div');
-        continueUploadSection.className = 'mt-4 text-center';
-        
-        const continueBtn = document.createElement('button');
-        continueBtn.className = 'btn btn-outline-primary';
-        continueBtn.textContent = '继续上传';
-        continueBtn.id = 'continueUploadBtn';
-        
-        continueUploadSection.appendChild(continueBtn);
-        container.appendChild(continueUploadSection);
-        
-        // 添加继续上传按钮事件监听器
-        continueBtn.addEventListener('click', function() {
-            // 显示上传组件，隐藏结果组件
-            if (uploadCard) {
-                uploadCard.style.display = 'block';
-            }
-            uploadResult.style.display = 'none';
+        container.innerHTML = `
+            <div class="text-center mb-4">
+                <img src="${escapeHtml(image.url)}" class="img-fluid rounded shadow" 
+                     style="max-height: 300px;" alt="${escapeHtml(image.tags || '图片')}">
+            </div>
             
-            // 清空表单
-            uploadForm.reset();
+            <div class="mb-3">
+                <label class="form-label fw-bold">标签:</label>
+                <div class="tags-container">${imageTags}</div>
+            </div>
             
-            // 滚动到上传组件
-            setTimeout(() => {
-                if (uploadCard) {
-                    uploadCard.scrollIntoView({ 
-                        behavior: 'smooth', 
-                        block: 'start' 
-                    });
-                }
-            }, 100);
-        });
+            <div class="mt-3">
+                <label class="form-label fw-bold">图片链接:</label>
+                <input type="text" class="form-control mb-2" 
+                       value="${escapeHtml(image.url)}" readonly id="imageUrlInput"
+                       onclick="this.select()">
+                <button class="btn btn-outline-primary" data-url="${escapeHtml(image.url)}" 
+                        onclick="copyUrlToClipboard(event)">
+                    复制链接
+                </button>
+            </div>
+            
+            <div class="mt-4 text-center">
+                <button class="btn btn-outline-primary" id="continueUploadBtn">继续上传</button>
+            </div>
+        `;
         
-        // 显示上传结果区域，隐藏上传组件
         uploadResult.style.display = 'block';
-        const uploadCard = document.getElementById('uploadCard');
         if (uploadCard) {
             uploadCard.style.display = 'none';
         }
         
-        // 添加点击输入框自动全选功能
-        linkInput.addEventListener('click', function() {
-            this.select();
-        });
+        const continueBtn = document.getElementById('continueUploadBtn');
+        if (continueBtn) {
+            continueBtn.addEventListener('click', resetUploadForm);
+        }
         
-        // 自动滚动到上传结果区域
         setTimeout(() => {
-            uploadResult.scrollIntoView({ 
-                behavior: 'smooth', 
-                block: 'start' 
-            });
+            uploadResult.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }, 100);
     }
     
-    function formatDate(dateString) {
-        const date = new Date(dateString);
-        return date.toLocaleString('zh-CN');
+    function resetUploadForm() {
+        if (uploadCard) {
+            uploadCard.style.display = 'block';
+        }
+        uploadResult.style.display = 'none';
+        uploadForm.reset();
+        resetFileSelection();
+        
+        setTimeout(() => {
+            if (uploadCard) {
+                uploadCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }, 100);
     }
     
     function showAlert(message, type) {
         const alertDiv = document.createElement('div');
         alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
-        alertDiv.innerHTML = `
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        `;
+        alertDiv.textContent = message;
+        
+        const btnClose = document.createElement('button');
+        btnClose.type = 'button';
+        btnClose.className = 'btn-close';
+        btnClose.setAttribute('data-bs-dismiss', 'alert');
+        alertDiv.appendChild(btnClose);
         
         const container = document.querySelector('.container');
-        container.insertBefore(alertDiv, container.firstChild);
+        if (container && container.firstChild) {
+            container.insertBefore(alertDiv, container.firstChild);
+        }
         
         setTimeout(() => {
             if (alertDiv.parentNode) {
@@ -253,31 +184,31 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function copyUrlToClipboard(e) {
         const url = e.target.getAttribute('data-url');
+        if (!url) return;
         
-        // 优先使用现代的Clipboard API
+        const button = e.target.classList.contains('copy-url') 
+            ? e.target 
+            : e.target.closest('.copy-url') || e.target;
+        
         if (navigator.clipboard) {
-            navigator.clipboard.writeText(url).then(function() {
-                showCopySuccess(e.target);
-            }).catch(function() {
-                // 如果现代API失败，尝试使用传统方法
-                fallbackCopyTextToClipboard(url, e.target);
-            });
+            navigator.clipboard.writeText(url)
+                .then(() => showCopySuccess(button))
+                .catch(() => fallbackCopyTextToClipboard(url, button));
         } else {
-            // 浏览器不支持Clipboard API，使用传统方法
-            fallbackCopyTextToClipboard(url, e.target);
+            fallbackCopyTextToClipboard(url, button);
         }
     }
     
     function showCopySuccess(button) {
         const originalText = button.innerHTML;
+        const originalClass = button.className;
+        
         button.innerHTML = '已复制';
-        button.classList.remove('btn-outline-primary');
-        button.classList.add('btn-success');
+        button.className = button.className.replace('btn-outline-primary', 'btn-success');
         
         setTimeout(() => {
             button.innerHTML = originalText;
-            button.classList.remove('btn-success');
-            button.classList.add('btn-outline-primary');
+            button.className = originalClass;
         }, 2000);
     }
     
@@ -286,6 +217,7 @@ document.addEventListener('DOMContentLoaded', function() {
         textArea.value = url;
         textArea.style.position = 'fixed';
         textArea.style.opacity = '0';
+        textArea.style.left = '-9999px';
         document.body.appendChild(textArea);
         textArea.select();
         
@@ -293,13 +225,12 @@ document.addEventListener('DOMContentLoaded', function() {
             document.execCommand('copy');
             showCopySuccess(button);
         } catch (err) {
-            alert('复制失败，请手动复制链接: ' + url);
+            showAlert('复制失败，请手动复制链接：' + url, 'warning');
         }
         
         document.body.removeChild(textArea);
     }
     
-    // 通用的复制到剪贴板函数
     function copyToClipboard(text) {
         return new Promise((resolve, reject) => {
             if (navigator.clipboard) {
@@ -309,6 +240,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 textArea.value = text;
                 textArea.style.position = 'fixed';
                 textArea.style.opacity = '0';
+                textArea.style.left = '-9999px';
                 document.body.appendChild(textArea);
                 textArea.select();
                 
@@ -324,26 +256,23 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    document.addEventListener('click', function(e) {
-        if (e.target.classList.contains('copy-url')) {
-            copyUrlToClipboard(e);
-        }
-    });
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
     
     fileInput.addEventListener('change', function() {
         handleFileSelection(fileInput.files[0]);
     });
     
-    // 拖放功能实现
     function initDragAndDrop() {
         if (!dropArea) return;
         
-        // 点击上传区域触发文件选择
         dropArea.addEventListener('click', function() {
             fileInput.click();
         });
         
-        // 拖放事件处理
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
             dropArea.addEventListener(eventName, preventDefaults, false);
         });
@@ -369,7 +298,6 @@ document.addEventListener('DOMContentLoaded', function() {
             dropArea.classList.remove('dragover');
         }
         
-        // 处理文件拖放
         dropArea.addEventListener('drop', handleDrop, false);
         
         function handleDrop(e) {
@@ -401,11 +329,10 @@ document.addEventListener('DOMContentLoaded', function() {
         
         dropArea.innerHTML = `
             <i class="fas fa-check-circle text-success display-1 mb-3"></i>
-            <p class="mb-1 fw-bold">${fileName}</p>
-            <small class="text-muted">${fileSize} • 点击重新选择或拖拽其他图片</small>
+            <p class="mb-1 fw-bold">${escapeHtml(fileName)}</p>
+            <small class="text-muted">${fileSize} · 点击重新选择或拖拽其他图片</small>
         `;
         
-        // 添加预览功能（可选）
         if (file.type.startsWith('image/')) {
             const reader = new FileReader();
             reader.onload = function(e) {
@@ -415,6 +342,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 preview.style.maxHeight = '150px';
                 preview.style.borderRadius = '8px';
                 preview.style.marginTop = '1rem';
+                preview.style.objectFit = 'cover';
                 dropArea.appendChild(preview);
             };
             reader.readAsDataURL(file);
@@ -423,7 +351,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function isValidImageFile(file) {
         const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-        const maxSize = 5 * 1024 * 1024; // 5MB
+        const maxSize = 5 * 1024 * 1024;
         
         return validTypes.includes(file.type) && file.size <= maxSize;
     }
@@ -438,15 +366,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
     
-    // 添加键盘快捷键支持
     document.addEventListener('keydown', function(e) {
-        // Ctrl + V 粘贴图片（如果支持）
-        if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
-            e.preventDefault();
-            // 这里可以添加粘贴板图片处理逻辑
-        }
-        
-        // Escape 键清除选择
         if (e.key === 'Escape') {
             resetFileSelection();
         }
@@ -459,5 +379,8 @@ document.addEventListener('DOMContentLoaded', function() {
             <p class="mb-2">拖放图片到此处或点击选择文件</p>
             <small class="text-muted">支持 JPG, PNG, GIF, WebP 格式</small>
         `;
+        
+        const previews = dropArea.querySelectorAll('img:not(.display-1)');
+        previews.forEach(img => img.remove());
     }
 });

@@ -1,8 +1,8 @@
 document.addEventListener('DOMContentLoaded', function() {
     let currentView = 'grid';
     
-    // 初始化标签筛选功能
     initTagFilter();
+    initLazyLoading();
     
     function toggleView(view) {
         currentView = view;
@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         updateViewButtons(view);
+        observeImages();
     }
     
     function updateViewButtons(activeView) {
@@ -34,10 +35,15 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function copyUrlToClipboard(e) {
         const url = e.target.getAttribute('data-url') || 
-                   e.target.closest('.copy-url').getAttribute('data-url');
+                    e.target.closest('.copy-url').getAttribute('data-url');
+        
+        if (!url) return;
+        
+        const target = e.target.classList.contains('copy-url') 
+            ? e.target 
+            : e.target.closest('.copy-url');
         
         navigator.clipboard.writeText(url).then(function() {
-            const target = e.target.classList.contains('copy-url') ? e.target : e.target.closest('.copy-url');
             const originalHTML = target.innerHTML;
             
             target.innerHTML = '<i class="fas fa-check"></i>';
@@ -50,13 +56,36 @@ document.addEventListener('DOMContentLoaded', function() {
                 target.classList.add('btn-outline-primary');
             }, 2000);
         }).catch(function() {
-            alert('复制失败，请手动复制链接: ' + url);
+            showAlert('复制失败，请手动复制链接');
         });
+    }
+    
+    function showAlert(message) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert alert-warning alert-dismissible fade show';
+        alertDiv.textContent = message;
+        
+        const btnClose = document.createElement('button');
+        btnClose.type = 'button';
+        btnClose.className = 'btn-close';
+        btnClose.setAttribute('data-bs-dismiss', 'alert');
+        alertDiv.appendChild(btnClose);
+        
+        const container = document.querySelector('.container-fluid');
+        if (container && container.firstChild) {
+            container.insertBefore(alertDiv, container.firstChild);
+        }
+        
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.remove();
+            }
+        }, 3000);
     }
     
     function clearAllImages() {
         if (confirm('确定要清空所有图片吗？此操作不可恢复！')) {
-            if (confirm('再次确认：这将删除所有图片数据，包括本地文件和GitHub存储的图片。')) {
+            if (confirm('再次确认：这将删除所有图片数据，包括本地文件和 GitHub 存储的图片。')) {
                 fetch('admin_actions.php?action=clear_all', {
                     method: 'POST',
                     headers: {
@@ -66,35 +95,44 @@ document.addEventListener('DOMContentLoaded', function() {
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        alert('所有图片已清空');
-                        location.reload();
+                        showAlert('所有图片已清空');
+                        setTimeout(() => location.reload(), 1000);
                     } else {
-                        alert('清空失败: ' + data.message);
+                        showAlert('清空失败：' + data.message);
                     }
                 })
                 .catch(error => {
-                    alert('操作失败: ' + error);
+                    showAlert('操作失败：' + error);
                 });
             }
         }
     }
     
     function showImageModal(imageUrl, imageName) {
+        const existingModal = document.getElementById('imageModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
         const modalHTML = `
-            <div class="modal fade" id="imageModal" tabindex="-1">
-                <div class="modal-dialog modal-lg">
+            <div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel">
+                <div class="modal-dialog modal-lg modal-dialog-centered">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h5 class="modal-title">${imageName}</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            <h5 class="modal-title" id="imageModalLabel">${escapeHtml(imageName)}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
-                        <div class="modal-body text-center">
-                            <img src="${imageUrl}" class="img-fluid" alt="${imageName}">
+                        <div class="modal-body text-center p-4">
+                            <img src="${escapeHtml(imageUrl)}" class="img-fluid" alt="${escapeHtml(imageName)}" loading="eager">
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
-                            <button type="button" class="btn btn-primary" onclick="copyUrlToClipboardModal('${imageUrl}')">复制链接</button>
-                            <a href="${imageUrl}" class="btn btn-info" download="${imageName}" target="_blank">下载</a>
+                            <button type="button" class="btn btn-primary" onclick="copyUrlToClipboardModal('${escapeHtml(imageUrl)}')">
+                                <i class="fas fa-clipboard me-1"></i>复制链接
+                            </button>
+                            <a href="${escapeHtml(imageUrl)}" class="btn btn-info" download="${escapeHtml(imageName)}" target="_blank">
+                                <i class="fas fa-download me-1"></i>下载
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -113,28 +151,28 @@ document.addEventListener('DOMContentLoaded', function() {
     function copyUrlToClipboardModal(url) {
         navigator.clipboard.writeText(url).then(function() {
             const btn = document.querySelector('#imageModal .btn-primary');
-            const originalText = btn.textContent;
-            btn.textContent = '已复制';
-            btn.classList.remove('btn-primary');
-            btn.classList.add('btn-success');
-            
-            setTimeout(() => {
-                btn.textContent = originalText;
-                btn.classList.remove('btn-success');
-                btn.classList.add('btn-primary');
-            }, 2000);
+            if (btn) {
+                const originalText = btn.textContent;
+                btn.textContent = '已复制';
+                btn.classList.remove('btn-primary');
+                btn.classList.add('btn-success');
+                
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.classList.remove('btn-success');
+                    btn.classList.add('btn-primary');
+                }, 2000);
+            }
         });
     }
     
     function initTagFilter() {
-        // 为标签按钮添加点击事件
         const tagButtons = document.querySelectorAll('.btn-group a[href*="tag="]');
         tagButtons.forEach(button => {
             button.addEventListener('click', function(e) {
                 e.preventDefault();
                 const url = this.getAttribute('href');
                 
-                // 显示加载状态
                 const cardBody = document.querySelector('.card-body');
                 const originalContent = cardBody.innerHTML;
                 cardBody.innerHTML = `
@@ -146,16 +184,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                 `;
                 
-                // 跳转到筛选页面
                 setTimeout(() => {
                     window.location.href = url;
                 }, 300);
             });
         });
         
-        // 添加键盘快捷键支持
         document.addEventListener('keydown', function(e) {
-            // Escape 键清除筛选
             if (e.key === 'Escape') {
                 const currentUrl = new URL(window.location.href);
                 if (currentUrl.searchParams.has('tag')) {
@@ -163,6 +198,81 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         });
+    }
+    
+    function initLazyLoading() {
+        const images = document.querySelectorAll('img[data-src], img[src]:not([src=""])');
+        
+        images.forEach(img => {
+            if (!img.complete) {
+                img.parentElement.style.position = 'relative';
+                img.parentElement.style.overflow = 'hidden';
+                
+                const skeleton = document.createElement('div');
+                skeleton.className = 'image-skeleton';
+                skeleton.style.cssText = `
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+                    background-size: 200% 100%;
+                    animation: shimmer 1.5s infinite;
+                    border-radius: 8px;
+                    z-index: 1;
+                `;
+                
+                img.style.position = 'relative';
+                img.style.zIndex = '2';
+                img.parentElement.insertBefore(skeleton, img);
+                
+                img.addEventListener('load', function() {
+                    if (skeleton && skeleton.parentNode) {
+                        skeleton.remove();
+                    }
+                });
+            }
+        });
+        
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes shimmer {
+                0% { background-position: -200% 0; }
+                100% { background-position: 200% 0; }
+            }
+        `;
+        document.head.appendChild(style);
+        
+        observeImages();
+    }
+    
+    function observeImages() {
+        if ('IntersectionObserver' in window) {
+            const imageObserver = new IntersectionObserver((entries, observer) => {
+                entries.forEach(entry => {
+                    if (!entry.isIntersecting) return;
+                    
+                    const img = entry.target;
+                    if (img.dataset.src) {
+                        img.src = img.dataset.src;
+                        img.removeAttribute('data-src');
+                    }
+                    
+                    observer.unobserve(img);
+                });
+            }, { rootMargin: '50px 0px' });
+            
+            document.querySelectorAll('img').forEach(img => {
+                imageObserver.observe(img);
+            });
+        }
+    }
+    
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
     
     document.addEventListener('click', function(e) {
@@ -177,8 +287,9 @@ document.addEventListener('DOMContentLoaded', function() {
             const link = e.target.closest('a');
             if (link) {
                 const imageUrl = link.href;
-                const imageName = link.closest('.card').querySelector('.card-title')?.textContent || 
-                                link.closest('tr').querySelector('td:nth-child(2)')?.textContent || 
+                const cardBody = link.closest('.card') || link.closest('tr');
+                const imageName = cardBody?.querySelector('.card-title')?.textContent || 
+                                cardBody?.querySelector('td:nth-child(2)')?.textContent || 
                                 '图片';
                 showImageModal(imageUrl, imageName);
             }

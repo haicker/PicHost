@@ -1,30 +1,39 @@
 <?php
 require_once __DIR__ . '/../config/database.php';
 
-function getImages() {
+function getImages($limit = null, $offset = 0) {
     $db = getDBConnection();
-    $stmt = $db->query("SELECT * FROM images ORDER BY upload_time DESC");
+    
+    if ($limit !== null) {
+        $stmt = $db->prepare("SELECT * FROM images ORDER BY upload_time DESC LIMIT :limit OFFSET :offset");
+        $stmt->bindValue(':limit', (int)$limit, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', (int)$offset, PDO::PARAM_INT);
+        $stmt->execute();
+    } else {
+        $stmt = $db->query("SELECT * FROM images ORDER BY upload_time DESC");
+    }
+    
     $images = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // 为每张图片生成正确的URL
+    $baseUrl = rtrim(getConfig('base_url'), '/');
+    
     foreach ($images as &$image) {
         if ($image['storage_type'] === 'github' && !empty($image['github_url'])) {
             $image['url'] = $image['github_url'];
         } else {
-            // 本地图片，确保使用完整URL
-            $localPath = $image['local_path'];
-            // 检查是否已经是完整URL
-            if (filter_var($localPath, FILTER_VALIDATE_URL)) {
-                $image['url'] = $localPath;
-            } else {
-                // 确保路径格式正确，避免重复斜杠
-                $localPath = ltrim($localPath, '/');
-                $image['url'] = rtrim(getConfig('base_url'), '/') . '/' . $localPath;
-            }
+            $localPath = ltrim($image['local_path'], '/');
+            $image['url'] = $baseUrl . '/' . $localPath;
         }
     }
     
     return $images;
+}
+
+function getImageCount() {
+    $db = getDBConnection();
+    $stmt = $db->query("SELECT COUNT(*) as count FROM images");
+    $result = $stmt->fetch(PDO::FETCH_ASSOC);
+    return $result['count'];
 }
 
 function saveImageToDB($imageData) {
@@ -288,16 +297,16 @@ function getSettings() {
     return $defaultSettings;
 }
 
-// 获取配置值（只使用动态设置）
+// 获取配置值（优先使用动态设置，否则使用常量）
 function getConfig($key) {
     $settings = getSettings();
 
-    // 只从动态设置中获取值
-    if (isset($settings[$key])) {
+    // 优先从动态设置中获取值（非空值）
+    if (isset($settings[$key]) && $settings[$key] !== '') {
         return $settings[$key];
     }
 
-    // 对于非GitHub配置，可以使用常量作为后备
+    // 对于非 GitHub 配置，可以使用常量作为后备
     $nonGithubConstants = [
         'base_url' => 'BASE_URL'
     ];
@@ -314,12 +323,20 @@ function getConfig($key) {
     return '';
 }
 
-// 检查GitHub配置是否完整（只使用动态配置）
+// 检查 GitHub 配置是否完整（只使用动态配置）
 function isGitHubConfigured() {
     $token = getConfig('github_token');
     $owner = getConfig('github_repo_owner');
     $repo = getConfig('github_repo_name');
 
     return !empty($token) && !empty($owner) && !empty($repo);
+}
+
+function formatFileSize($bytes) {
+    if ($bytes == 0) return '0 B';
+    $k = 1024;
+    $sizes = ['B', 'KB', 'MB', 'GB'];
+    $i = floor(log($bytes) / log($k));
+    return round($bytes / pow($k, $i), 2) . ' ' . $sizes[$i];
 }
 ?>

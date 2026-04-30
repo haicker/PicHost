@@ -1,7 +1,9 @@
 body {
-    background: linear-gradient(rgba(102, 126, 234, 0.8), rgba(118, 75, 162, 0.8)), url('../img/bg.jpg') center/cover no-repeat fixed;
+    background: linear-gradient(135deg, rgba(14, 165, 233, 0.7), rgba(59, 130, 246, 0.7)), url('../img/bg.jpg') center/cover no-repeat fixed;
     min-height: 100vh;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    will-change: scroll-position;
+    line-height: 1.6;
 }
 
 .container {
@@ -10,16 +12,17 @@ body {
 
 .card {
     border: none;
-    border-radius: 16px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-    backdrop-filter: blur(10px);
-    background: rgba(255, 255, 255, 0.95);
+    border-radius: 20px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+    backdrop-filter: blur(12px);
+    background: rgba(255, 255, 255, 0.96);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     overflow: hidden;
+    margin-bottom: 1.75rem;
 }
 
 .card:hover {
-    transform: translateY(-5px);
+    transform: translate3d(0, -5px, 0);
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
 }
 
@@ -28,30 +31,27 @@ body {
     background: rgba(0, 0, 0, 0.8) !important;
     backdrop-filter: blur(20px);
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    padding: 0.8rem 0;
 }
 
 .navbar-brand {
     font-weight: 700;
-    font-size: 1.5rem;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    font-size: 1.4rem;
+    background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+    letter-spacing: -0.3px;
 }
 
 .nav-link {
     color: rgba(255, 255, 255, 0.8) !important;
     font-weight: 500;
-    transition: all 0.3s ease;
     border-radius: 8px;
-    padding: 0.5rem 1rem !important;
 }
 
 .nav-link:hover {
     color: white !important;
     background: rgba(255, 255, 255, 0.1);
-    transform: translateY(-1px);
 }
 
 .card-img-top {
@@ -67,8 +67,8 @@ body {
 
 .progress-bar {
     border-radius: 10px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    transition: width 0.3s ease;
+    background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%);
+    transition: width 0.5s ease;
 }
 
 .copy-url {
@@ -77,7 +77,7 @@ body {
 }
 
 .copy-url:hover {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%);
     color: white;
     transform: scale(1.05);
 }
@@ -92,26 +92,26 @@ body {
 
 /* 上传区域样式 */
 .upload-area {
-    border: 3px dashed rgba(102, 126, 234, 0.3);
-    border-radius: 16px;
-    padding: 3rem 2rem;
+    border: 3px dashed rgba(14, 165, 233, 0.3);
+    border-radius: 20px;
+    padding: 4rem 2rem;
     text-align: center;
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    background: rgba(255, 255, 255, 0.5);
+    background: rgba(255, 255, 255, 0.6);
     position: relative;
     overflow: hidden;
 }
 
 .upload-area:hover {
-    border-color: #667eea;
-    background: rgba(102, 126, 234, 0.05);
-    transform: translateY(-2px);
+    border-color: #0ea5e9;
+    background: rgba(14, 165, 233, 0.05);
+    transform: translate3d(0, -2px, 0);
 }
 
 .upload-area.dragover {
-    border-color: #667eea;
-    background: rgba(102, 126, 234, 0.1);
+    border-color: #0ea5e9;
+    background: rgba(14, 165, 233, 0.1);
     transform: scale(1.02);
 }
 
@@ -132,22 +132,23 @@ body {
 
 /* 按钮样式 */
 .btn-primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%);
     border: none;
-    border-radius: 12px;
-    padding: 0.75rem 2rem;
+    border-radius: 14px;
+    padding: 0.875rem 2.5rem;
     font-weight: 600;
     font-size: 1rem;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    box-shadow: 0 4px 15px rgba(14, 165, 233, 0.3);
     position: relative;
     overflow: hidden;
+    letter-spacing: 0.3px;
 }
 
 .btn-primary:hover {
-    background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+    background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
+    transform: translate3d(0, -3px, 0);
+    box-shadow: 0 8px 25px rgba(14, 165, 233, 0.4);
 }
 
 .btn-primary:active {
@@ -165,8 +166,8 @@ body {
 }
 
 .form-control:focus {
-    border-color: #667eea;
-    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    border-color: #0ea5e9;
+    box-shadow: 0 0 0 0.2rem rgba(14, 165, 233, 0.25);
     background: white;
 }
 
@@ -178,10 +179,10 @@ body {
 
 /* 卡片头部样式 */
 .card-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%);
     color: white;
     border-bottom: none;
-    padding: 1.5rem;
+    padding: 1.75rem;
 }
 
 .card-header h3, .card-header h4 {
@@ -192,6 +193,7 @@ body {
 
 .card-body {
     padding: 2rem;
+    letter-spacing: -0.02em;
 }
 
 /* 上传结果区域样式 */
@@ -228,33 +230,35 @@ body {
 /* 响应式设计 */
 @media (max-width: 768px) {
     .container {
-        padding: 0 1rem;
+        padding: 1.5rem 1rem;
     }
     
     .display-4 {
-        font-size: 2.5rem;
+        font-size: 2.25rem;
+        line-height: 1.2;
     }
     
     .card {
-        border-radius: 12px;
-        margin: 0 0.5rem;
+        border-radius: 16px;
+        margin: 0 0.5rem 1.5rem;
     }
     
     .card-body {
-        padding: 1.5rem;
+        padding: 1.75rem;
     }
     
     .upload-area {
-        padding: 2rem 1rem;
+        padding: 3rem 1rem;
     }
     
     .btn-lg {
-        padding: 0.75rem 1.5rem;
+        padding: 0.875rem 2rem;
         font-size: 1rem;
+        width: 100%;
     }
     
     .navbar-brand {
-        font-size: 1.25rem;
+        font-size: 1.35rem;
     }
 }
 
@@ -332,33 +336,30 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%);
     border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+    background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
 }
 
 /* 文本选择样式 */
 ::selection {
-    background: rgba(102, 126, 234, 0.3);
+    background: rgba(14, 165, 233, 0.3);
     color: white;
 }
 
 ::-moz-selection {
-    background: rgba(102, 126, 234, 0.3);
+    background: rgba(14, 165, 233, 0.3);
     color: white;
 }
 
 /* 焦点样式改进 */
-*:focus {
-    outline: none;
-}
-
 .btn:focus,
 .form-control:focus {
-    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25) !important;
+    box-shadow: 0 0 0 0.25rem rgba(14, 165, 233, 0.25) !important;
+    outline: none;
 }
 
 /* 加载状态 */
@@ -397,6 +398,8 @@ body {
 .error {
     border-color: #dc3545 !important;
     background: rgba(220, 53, 69, 0.1) !important;
+}
+
 #uploadedImageContainer img:hover {
     transform: scale(1.02);
 }
@@ -450,6 +453,64 @@ body {
 }
 
 .image-card:hover {
-    transform: translateY(-5px);
+    transform: translate3d(0, -5px, 0);
     box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+}
+
+/* 深色模式支持 */
+@media (prefers-color-scheme: dark) {
+    .form-control {
+        background: rgba(30, 30, 30, 0.9);
+        color: #fff;
+        border-color: rgba(255, 255, 255, 0.1);
+    }
+    
+    .form-control:focus {
+        background: rgba(40, 40, 40, 0.9);
+        border-color: #0ea5e9;
+    }
+    
+    .card {
+        background: rgba(30, 30, 30, 0.95);
+        color: #fff;
+    }
+    
+    .form-label {
+        color: #e0e0e0;
+    }
+    
+    .table {
+        background: rgba(30, 30, 30, 0.95);
+        color: #fff;
+    }
+    
+    .table tbody tr:hover {
+        background-color: rgba(14, 165, 233, 0.1);
+    }
+}
+
+/* 可访问性改进 */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* 打印样式 */
+@media print {
+    .navbar,
+    .btn,
+    #uploadForm,
+    #uploadProgress {
+        display: none !important;
+    }
+    
+    .card {
+        box-shadow: none !important;
+        border: 1px solid #ddd !important;
+    }
 }

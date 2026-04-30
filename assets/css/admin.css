@@ -1,8 +1,9 @@
 /* 后台整体样式 - 与首页风格一致但去除动画 */
 body {
-    background: linear-gradient(rgba(102, 126, 234, 0.9), rgba(118, 75, 162, 0.9)), url('../img/bg.jpg') center/cover no-repeat fixed;
+    background: linear-gradient(135deg, rgba(14, 165, 233, 0.8), rgba(59, 130, 246, 0.8)), url('../img/bg.jpg') center/cover no-repeat fixed;
     min-height: 100vh;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    line-height: 1.6;
 }
 
 .container {
@@ -18,16 +19,17 @@ body {
     background: rgba(0, 0, 0, 0.8) !important;
     backdrop-filter: blur(20px);
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    padding: 0.8rem 0;
+    padding: 0.6rem 0;
 }
 
 .navbar-brand {
     font-weight: 700;
-    font-size: 1.5rem;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    font-size: 1.4rem;
+    background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+    letter-spacing: -0.3px;
 }
 
 .nav-link {
@@ -49,18 +51,19 @@ body {
 /* 卡片样式 */
 .card {
     border: none;
-    border-radius: 16px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-    backdrop-filter: blur(10px);
-    background: rgba(255, 255, 255, 0.95);
+    border-radius: 20px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+    backdrop-filter: blur(12px);
+    background: rgba(255, 255, 255, 0.96);
     overflow: hidden;
+    margin-bottom: 1.75rem;
 }
 
 .card-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%);
     color: white;
     border-bottom: none;
-    padding: 1.5rem;
+    padding: 1.75rem;
     font-weight: 700;
 }
 
@@ -85,17 +88,18 @@ body {
 /* 表格样式 */
 .table {
     background: rgba(255, 255, 255, 0.95);
-    border-radius: 12px;
+    border-radius: 16px;
     overflow: hidden;
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
 }
 
 .table th {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: #0ea5e9;
     color: white;
     border: none;
     font-weight: 600;
     padding: 1rem;
+    text-align: left;
 }
 
 .table td {
@@ -116,22 +120,22 @@ body {
 }
 
 .btn-primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%);
 }
 
 .btn-primary:hover {
-    background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+    background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
 }
 
 .btn-outline-primary {
-    border: 2px solid #667eea;
-    color: #667eea;
+    border: 2px solid #0ea5e9;
+    color: #0ea5e9;
     background: transparent;
 }
 
 .btn-outline-primary:hover {
-    background: #667eea;
-    border-color: #667eea;
+    background: #0ea5e9;
+    border-color: #0ea5e9;
     color: white;
 }
 
@@ -148,7 +152,17 @@ body {
 }
 
 .btn-group .btn {
-    border-radius: 12px;
+    border-radius: 0;
+    min-width: 48px;
+    flex: 1;
+}
+
+.btn-group .btn:first-child {
+    border-radius: 12px 0 0 12px;
+}
+
+.btn-group .btn:last-child {
+    border-radius: 0 12px 12px 0;
 }
 
 /* 图片预览 */
@@ -156,8 +170,8 @@ body {
     max-width: 100px;
     max-height: 100px;
     object-fit: cover;
-    border-radius: 8px;
-    border: 2px solid rgba(102, 126, 234, 0.2);
+    border-radius: 10px;
+    border: 2px solid rgba(14, 165, 233, 0.2);
 }
 
 /* 徽章样式 */
@@ -201,7 +215,7 @@ body {
 
 .progress-bar {
     border-radius: 10px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%);
 }
 
 /* 表单控件 */
@@ -214,8 +228,8 @@ body {
 }
 
 .form-control:focus {
-    border-color: #667eea;
-    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    border-color: #0ea5e9;
+    box-shadow: 0 0 0 0.2rem rgba(14, 165, 233, 0.25);
     background: white;
 }
 
@@ -234,7 +248,7 @@ body {
 }
 
 .modal-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%);
     color: white;
     border-bottom: none;
     border-radius: 16px 16px 0 0;
@@ -247,6 +261,47 @@ body {
 /* 文本颜色 */
 .text-muted {
     color: #6c757d !important;
+}
+
+/* 深色模式支持 */
+@media (prefers-color-scheme: dark) {
+    .card {
+        background: rgba(30, 30, 30, 0.95);
+        color: #fff;
+    }
+    
+    .table {
+        background: rgba(30, 30, 30, 0.95);
+        color: #fff;
+    }
+    
+    .table td {
+        border-color: rgba(255, 255, 255, 0.1);
+    }
+    
+    .table tbody tr:hover {
+        background-color: rgba(14, 165, 233, 0.1);
+    }
+    
+    .form-control {
+        background: rgba(30, 30, 30, 0.9);
+        color: #fff;
+        border-color: rgba(255, 255, 255, 0.1);
+    }
+    
+    .form-control:focus {
+        background: rgba(40, 40, 40, 0.9);
+        border-color: #0ea5e9;
+    }
+    
+    .form-label {
+        color: #e0e0e0;
+    }
+    
+    .modal-content {
+        background: rgba(30, 30, 30, 0.95);
+        color: #fff;
+    }
 }
 
 /* 响应式设计 */
@@ -272,6 +327,14 @@ body {
         max-width: 80px;
         max-height: 80px;
     }
+    
+    .btn-group {
+        flex-wrap: wrap;
+    }
+    
+    .stat-card {
+        margin-bottom: 1rem;
+    }
 }
 
 @media (max-width: 576px) {
@@ -281,5 +344,39 @@ body {
     
     .card-header h5 {
         font-size: 1.1rem;
+    }
+    
+    .btn-group .btn {
+        width: 100%;
+        margin-bottom: 0.5rem;
+    }
+}
+
+/* 可访问性改进 */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* 打印样式 */
+@media print {
+    .navbar,
+    .btn,
+    .btn-group {
+        display: none !important;
+    }
+    
+    .card {
+        box-shadow: none !important;
+        border: 1px solid #ddd !important;
+    }
+    
+    .table {
+        font-size: 10pt;
     }
 }
