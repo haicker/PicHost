@@ -173,6 +173,13 @@ function saveAdminConfig($data) {
         $configContent
     );
     
+    // 保存基础URL
+    $configContent = preg_replace(
+        "/define\('BASE_URL', '.*?'\);/",
+        "define('BASE_URL', '" . addslashes($data['base_url']) . "');",
+        $configContent
+    );
+    
     return file_put_contents('config/config.php', $configContent) !== false;
 }
 
