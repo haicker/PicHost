@@ -231,11 +231,7 @@ foreach ($images as $image) {
                                     <div class="col-lg-4 col-md-6 mb-4">
                                         <div class="card h-100 image-card">
                                             <img src="<?php echo $image['url']; ?>" 
-<<<<<<< HEAD
                                                  class="card-img-top" alt="<?php echo htmlspecialchars($image['original_name']); ?>"
-=======
-                                                 class="card-img-top" alt="<?php echo htmlspecialchars($image['description']); ?>"
->>>>>>> 91e00149e073c83b7b37d7a14814c4b5cb885322
                                                  style="height: 200px; object-fit: cover;">
                                             <div class="card-body">
                                                 <h6 class="card-title fw-bold"><?php echo htmlspecialchars($image['original_name']); ?></h6>

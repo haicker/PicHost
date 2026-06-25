@@ -1,0 +1,8 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule \.(php|phtml|php3|php4|php5|php7|phps)$ - [F,L]
+</IfModule>
+
+<FilesMatch "\.(php|phtml|php3|php4|php5|php7|phps)$">
+    Require all denied
+</FilesMatch>
