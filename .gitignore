@@ -1,0 +1,26 @@
+# 配置文件（含数据库密码、GitHub Token 等敏感信息）
+config/config.php
+config/settings.json
+config/.htaccess
+
+# 安装锁定文件
+.installed
+
+# 上传目录
+uploads/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 压缩包
+*.zip
+*.tar.gz
+*.tar

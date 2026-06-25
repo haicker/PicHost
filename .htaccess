@@ -1,0 +1,10 @@
+# 保护敏感文件
+<FilesMatch "\.(json|lock|md)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# 保护 config 目录
+<IfModule mod_rewrite.c>
+    RewriteRule ^config/ - [F,L]
+</IfModule>
