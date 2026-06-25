@@ -457,6 +457,40 @@ body {
     box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
 }
 
+<<<<<<< HEAD
+=======
+/* 深色模式支持 */
+@media (prefers-color-scheme: dark) {
+    .form-control {
+        background: rgba(30, 30, 30, 0.9);
+        color: #fff;
+        border-color: rgba(255, 255, 255, 0.1);
+    }
+    
+    .form-control:focus {
+        background: rgba(40, 40, 40, 0.9);
+        border-color: #0ea5e9;
+    }
+    
+    .card {
+        background: rgba(30, 30, 30, 0.95);
+        color: #fff;
+    }
+    
+    .form-label {
+        color: #e0e0e0;
+    }
+    
+    .table {
+        background: rgba(30, 30, 30, 0.95);
+        color: #fff;
+    }
+    
+    .table tbody tr:hover {
+        background-color: rgba(14, 165, 233, 0.1);
+    }
+}
+>>>>>>> 91e00149e073c83b7b37d7a14814c4b5cb885322
 
 /* 可访问性改进 */
 @media (prefers-reduced-motion: reduce) {

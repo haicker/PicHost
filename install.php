@@ -8,6 +8,7 @@ if (file_exists('.installed')) {
     }
 }
 
+<<<<<<< HEAD
 function getCurrentBaseUrl() {
     $protocol = 'http';
     if (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') $protocol = 'https';
@@ -19,6 +20,8 @@ function getCurrentBaseUrl() {
     return $protocol . '://' . $host . $scriptDir;
 }
 
+=======
+>>>>>>> 91e00149e073c83b7b37d7a14814c4b5cb885322
 $step = $_GET['step'] ?? 1;
 $error = '';
 $success = '';
@@ -132,8 +135,12 @@ function saveDatabaseConfig($data) {
     $configContent .= "define('MAX_FILE_SIZE', 5 * 1024 * 1024);\n";
     $configContent .= "define('ALLOWED_TYPES', ['jpg', 'jpeg', 'png', 'gif', 'webp']);\n";
     $configContent .= "define('UPLOAD_DIR', 'uploads/');\n";
+<<<<<<< HEAD
     $configContent .= "define('BASE_URL', '" . addslashes($data['base_url'] ?? getCurrentBaseUrl()) . "');\n";
     $configContent .= "define('CONFIG_KEY', '" . bin2hex(random_bytes(16)) . "');\n\n";
+=======
+    $configContent .= "define('BASE_URL', '" . addslashes($data['base_url'] ?? 'http://localhost/img') . "');\n\n";
+>>>>>>> 91e00149e073c83b7b37d7a14814c4b5cb885322
     
     $configContent .= "// 管理员配置（将在下一步设置）\n";
     $configContent .= "define('ADMIN_USERNAME', '');\n";
@@ -156,10 +163,22 @@ function validateAdminConfig($data) {
         return '密码长度至少6位';
     }
     
+<<<<<<< HEAD
     if (!empty($data['base_url']) && !filter_var($data['base_url'], FILTER_VALIDATE_URL)) {
         return '基础URL格式不正确，请包含http://或https://';
     }
 
+=======
+    if (empty($data['base_url'])) {
+        return '请填写基础URL';
+    }
+    
+    // 验证URL格式
+    if (!filter_var($data['base_url'], FILTER_VALIDATE_URL)) {
+        return '基础URL格式不正确，请包含http://或https://';
+    }
+    
+>>>>>>> 91e00149e073c83b7b37d7a14814c4b5cb885322
     return '';
 }
 
@@ -168,6 +187,7 @@ function saveAdminConfig($data) {
         return false;
     }
     
+<<<<<<< HEAD
     $hashedPassword = password_hash($data['admin_password'], PASSWORD_DEFAULT);
     
     $configContent = file_get_contents('config/config.php');
@@ -188,6 +208,24 @@ function saveAdminConfig($data) {
     $configContent = preg_replace(
         "/define\('BASE_URL', '.*?'\);/",
         str_replace(['\\', '$'], ['\\\\', '\\$'], $baseUrlLine),
+=======
+    $configContent = file_get_contents('config/config.php');
+    $configContent = preg_replace(
+        "/define\('ADMIN_USERNAME', ''\);/",
+        "define('ADMIN_USERNAME', '" . addslashes($data['admin_username']) . "');",
+        $configContent
+    );
+    $configContent = preg_replace(
+        "/define\('ADMIN_PASSWORD', ''\);/",
+        "define('ADMIN_PASSWORD', '" . addslashes($data['admin_password']) . "');",
+        $configContent
+    );
+    
+    // 保存基础URL
+    $configContent = preg_replace(
+        "/define\('BASE_URL', '.*?'\);/",
+        "define('BASE_URL', '" . addslashes($data['base_url']) . "');",
+>>>>>>> 91e00149e073c83b7b37d7a14814c4b5cb885322
         $configContent
     );
     
@@ -1026,9 +1064,15 @@ function initializeDatabase() {
                         
                         <div class="mb-3">
                             <label for="base_url" class="form-label">基础URL</label>
+<<<<<<< HEAD
                             <input type="url" class="form-control" id="base_url" name="base_url"
                                    value="<?php echo htmlspecialchars($_POST['base_url'] ?? getCurrentBaseUrl()); ?>"
                                    placeholder="https://example.com" required>
+=======
+                            <input type="url" class="form-control" id="base_url" name="base_url" 
+                                   value="<?php echo htmlspecialchars($_POST['base_url'] ?? 'http://localhost/img'); ?>" 
+                                   placeholder="https://example.com/img" required>
+>>>>>>> 91e00149e073c83b7b37d7a14814c4b5cb885322
                             <div class="form-text">
                                 必须包含协议（http://或https://），用于生成图片的完整访问链接
                             </div>
@@ -1051,7 +1095,11 @@ function initializeDatabase() {
                             <li>数据库主机: <?php echo htmlspecialchars($_POST['db_host'] ?? 'localhost'); ?></li>
                             <li>数据库名: <?php echo htmlspecialchars($_POST['db_name'] ?? 'image_hosting'); ?></li>
                             <li>管理员账号: <?php echo htmlspecialchars($_POST['admin_username'] ?? 'admin'); ?></li>
+<<<<<<< HEAD
                             <li>基础URL: <?php echo htmlspecialchars($_POST['base_url'] ?? getCurrentBaseUrl()); ?></li>
+=======
+                            <li>基础URL: <?php echo htmlspecialchars($_POST['base_url'] ?? 'http://localhost/img'); ?></li>
+>>>>>>> 91e00149e073c83b7b37d7a14814c4b5cb885322
                         </ul>
                     </div>
                     
