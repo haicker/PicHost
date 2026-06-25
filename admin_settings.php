@@ -16,7 +16,6 @@ if (!isAdminLoggedIn()) {
 $message = '';
 $settingsFile = 'config/settings.json';
 
-<<<<<<< HEAD
 function detectBaseUrl() {
     $protocol = 'http';
     if (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') $protocol = 'https';
@@ -37,30 +36,7 @@ $settings['webdav_path'] = $settings['webdav_path'] ?? 'images';
 $settings['require_login'] = $settings['require_login'] ?? false;
 $settings['default_storage'] = $settings['default_storage'] ?? 'local';
 
-=======
-// 加载设置
-$settings = [
-    'github_token' => '',
-    'github_repo_owner' => '',
-    'github_repo_name' => '',
-    'github_repo_path' => '',
-    'webdav_url' => '',
-    'webdav_username' => '',
-    'webdav_password' => '',
-    'webdav_path' => 'images',
-    'base_url' => '',
-    'require_login' => false,
-    'default_storage' => 'local' // 默认存储类型：local、github 或 webdav
-];
 
-if (file_exists($settingsFile)) {
-    $savedSettings = json_decode(file_get_contents($settingsFile), true);
-    if ($savedSettings) {
-        $settings = array_merge($settings, $savedSettings);
-    }
-}
-
->>>>>>> 91e00149e073c83b7b37d7a14814c4b5cb885322
 // 处理表单提交
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $newSettings = [
@@ -77,7 +53,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'default_storage' => trim($_POST['default_storage'] ?? 'local')
     ];
 
-<<<<<<< HEAD
     // 加密敏感字段
     foreach (getSensitiveFields() as $field) {
         if (isset($newSettings[$field])) {
@@ -85,8 +60,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-=======
->>>>>>> 91e00149e073c83b7b37d7a14814c4b5cb885322
     // 验证基础URL格式
     if (!empty($newSettings['base_url']) && !filter_var($newSettings['base_url'], FILTER_VALIDATE_URL)) {
         $message = '错误：基础URL格式不正确';
@@ -115,7 +88,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (empty($message)) {
                 $message = '设置保存成功！';
             }
-<<<<<<< HEAD
             // 解密后用于表单回显
             $settings = $newSettings;
             foreach (getSensitiveFields() as $field) {
@@ -123,9 +95,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $settings[$field] = decryptSetting($settings[$field]);
                 }
             }
-=======
-            $settings = $newSettings;
->>>>>>> 91e00149e073c83b7b37d7a14814c4b5cb885322
+
         } else {
             $message = '错误：设置保存失败';
         }
@@ -161,7 +131,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </a>
             <div class="navbar-nav ms-auto">
                 <span class="navbar-text me-3">
-                    欢迎, <?php echo $_SESSION['admin_username']; ?>
+                    欢迎, <?php echo htmlspecialchars($_SESSION['admin_username']); ?>
                 </span>
                 <a class="nav-link" href="admin.php">图片管理</a>
                 <a class="nav-link active" href="admin_settings.php">系统设置</a>
@@ -293,15 +263,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                         <label for="base_url" class="form-label">基础URL</label>
                                         <input type="url" class="form-control" id="base_url" name="base_url" 
                                                value="<?php echo htmlspecialchars($settings['base_url']); ?>" 
-<<<<<<< HEAD
                                                placeholder="<?php echo detectBaseUrl(); ?>">
                                         <div class="form-text">
                                             用于生成图片的完整访问链接。留空则自动使用当前域名：<code><?php echo detectBaseUrl(); ?></code>
-=======
-                                               placeholder="https://example.com/img" required>
-                                        <div class="form-text">
-                                            用于生成图片的完整访问链接，必须包含协议（http://或https://）
->>>>>>> 91e00149e073c83b7b37d7a14814c4b5cb885322
                                         </div>
                                     </div>
                                 </div>

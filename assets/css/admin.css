@@ -275,50 +275,6 @@ body {
     color: #6c757d !important;
 }
 
-<<<<<<< HEAD
-=======
-/* 深色模式支持 */
-@media (prefers-color-scheme: dark) {
-    .card {
-        background: rgba(30, 30, 30, 0.95);
-        color: #fff;
-    }
-    
-    .table {
-        background: rgba(30, 30, 30, 0.95);
-        color: #fff;
-    }
-    
-    .table td {
-        border-color: rgba(255, 255, 255, 0.1);
-    }
-    
-    .table tbody tr:hover {
-        background-color: rgba(14, 165, 233, 0.1);
-    }
-    
-    .form-control {
-        background: rgba(30, 30, 30, 0.9);
-        color: #fff;
-        border-color: rgba(255, 255, 255, 0.1);
-    }
-    
-    .form-control:focus {
-        background: rgba(40, 40, 40, 0.9);
-        border-color: #0ea5e9;
-    }
-    
-    .form-label {
-        color: #e0e0e0;
-    }
-    
-    .modal-content {
-        background: rgba(30, 30, 30, 0.95);
-        color: #fff;
-    }
-}
-
->>>>>>> 91e00149e073c83b7b37d7a14814c4b5cb885322
 /* 响应式设计 */
 @media (max-width: 768px) {
     .container-fluid {

@@ -334,7 +334,6 @@ function isAdminLoggedIn() {
 }
 
 function adminLogin($username, $password) {
-<<<<<<< HEAD
     if ($username === ADMIN_USERNAME) {
         $stored = ADMIN_PASSWORD;
         if (preg_match('/^\$2[ayb]\$/', $stored)) {
@@ -348,12 +347,6 @@ function adminLogin($username, $password) {
             $_SESSION['admin_username'] = $username;
             return true;
         }
-=======
-    if ($username === ADMIN_USERNAME && $password === ADMIN_PASSWORD) {
-        $_SESSION['admin_logged_in'] = true;
-        $_SESSION['admin_username'] = $username;
-        return true;
->>>>>>> 91e00149e073c83b7b37d7a14814c4b5cb885322
     }
     return false;
 }
@@ -364,7 +357,6 @@ function adminLogout() {
     session_destroy();
 }
 
-<<<<<<< HEAD
 // 加密设置项
 function encryptSetting($value) {
     if ($value === '' || $value === null) return '';
@@ -391,8 +383,7 @@ function getSensitiveFields() {
     return ['github_token', 'webdav_username', 'webdav_password'];
 }
 
-=======
->>>>>>> 91e00149e073c83b7b37d7a14814c4b5cb885322
+
 // 获取系统设置
 function getSettings() {
     $settingsFile = 'config/settings.json';
@@ -409,7 +400,6 @@ function getSettings() {
         'default_storage' => 'local',
         'require_login' => false
     ];
-<<<<<<< HEAD
 
     if (file_exists($settingsFile)) {
         $savedSettings = json_decode(file_get_contents($settingsFile), true);
@@ -424,16 +414,6 @@ function getSettings() {
         }
     }
 
-=======
-    
-    if (file_exists($settingsFile)) {
-        $savedSettings = json_decode(file_get_contents($settingsFile), true);
-        if ($savedSettings) {
-            return array_merge($defaultSettings, $savedSettings);
-        }
-    }
-    
->>>>>>> 91e00149e073c83b7b37d7a14814c4b5cb885322
     return $defaultSettings;
 }
 
@@ -451,7 +431,6 @@ function getConfig($key) {
         'base_url' => 'BASE_URL'
     ];
 
-<<<<<<< HEAD
     if (isset($nonGithubConstants[$key]) && defined($nonGithubConstants[$key]) && constant($nonGithubConstants[$key]) !== '') {
         return constant($nonGithubConstants[$key]);
     }
@@ -464,12 +443,6 @@ function getConfig($key) {
         return $protocol . '://' . $host . $scriptDir;
     }
 
-=======
-    if (isset($nonGithubConstants[$key]) && defined($nonGithubConstants[$key])) {
-        return constant($nonGithubConstants[$key]);
-    }
-
->>>>>>> 91e00149e073c83b7b37d7a14814c4b5cb885322
     // 默认值
     if ($key === 'default_storage') {
         return 'local';
@@ -503,7 +476,7 @@ function formatFileSize($bytes) {
     $i = floor(log($bytes) / log($k));
     return round($bytes / pow($k, $i), 2) . ' ' . $sizes[$i];
 }
-<<<<<<< HEAD
+
 
 function isHttps() {
     // 标准 HTTPS 检测
@@ -520,6 +493,4 @@ function isHttps() {
     }
     return false;
 }
-=======
->>>>>>> 91e00149e073c83b7b37d7a14814c4b5cb885322
 ?>
