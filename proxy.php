@@ -5,6 +5,11 @@
 require_once 'config/config.php';
 require_once 'includes/functions.php';
 
+if (!defined('INSTALLED') && !file_exists('.installed')) {
+    http_response_code(503);
+    exit('System not installed');
+}
+
 $imageId = $_GET['id'] ?? null;
 
 if (!$imageId) {
@@ -29,30 +34,25 @@ if ($image['storage_type'] === 'webdav' && !empty($image['webdav_url'])) {
     $webdavUsername = getConfig('webdav_username');
     $webdavPassword = getConfig('webdav_password');
     
-    // 使用 cURL 获取图片内容
+    header('Cache-Control: public, max-age=31536000');
+    header('Expires: ' . gmdate('D, d M Y H:i:s', time() + 31536000) . ' GMT');
+    header('Content-Type: ' . $image['mime_type']);
+
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, $webdavUrl);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
     curl_setopt($ch, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
     curl_setopt($ch, CURLOPT_USERPWD, $webdavUsername . ':' . $webdavPassword);
     curl_setopt($ch, CURLOPT_TIMEOUT, 30);
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+    curl_setopt($ch, CURLOPT_FILE, fopen('php://output', 'wb'));
     
-    $imageContent = curl_exec($ch);
+    $result = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
     
-    if ($httpCode === 200 && $imageContent !== false) {
-        // 设置缓存头
-        header('Cache-Control: public, max-age=31536000');
-        header('Expires: ' . gmdate('D, d M Y H:i:s', time() + 31536000) . ' GMT');
-        // 根据 MIME 类型设置响应头
-        header('Content-Type: ' . $image['mime_type']);
-        header('Content-Length: ' . strlen($imageContent));
-        echo $imageContent;
+    if ($httpCode === 200 && $result !== false) {
         exit;
     } else {
-        // 获取失败，返回错误图片
         http_response_code(500);
         exit('Failed to fetch image from WebDAV');
     }

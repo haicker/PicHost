@@ -31,7 +31,7 @@ function clearAllImages() {
     try {
         $db->beginTransaction();
         
-        $stmt = $db->query("SELECT * FROM images");
+        $stmt = $db->query("SELECT id, local_path, storage_type FROM images");
         $images = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
         foreach ($images as $image) {

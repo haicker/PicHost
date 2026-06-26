@@ -1,6 +1,5 @@
 <?php
-// 安装检测 - 如果未安装，跳转到安装页面
-if (!file_exists('.installed')) {
+if (!defined('INSTALLED') && !file_exists('.installed')) {
     header('Location: install.php');
     exit;
 }
@@ -35,6 +34,7 @@ $settings['github_repo_path'] = $settings['github_repo_path'] ?? 'images';
 $settings['webdav_path'] = $settings['webdav_path'] ?? 'images';
 $settings['require_login'] = $settings['require_login'] ?? false;
 $settings['default_storage'] = $settings['default_storage'] ?? 'local';
+$settings['bg_image'] = $settings['bg_image'] ?? '';
 
 
 // 处理表单提交
@@ -50,8 +50,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'webdav_path' => trim($_POST['webdav_path'] ?? 'images'),
         'base_url' => trim($_POST['base_url'] ?? ''),
         'require_login' => isset($_POST['require_login']) && $_POST['require_login'] === '1',
-        'default_storage' => trim($_POST['default_storage'] ?? 'local')
+        'default_storage' => trim($_POST['default_storage'] ?? 'local'),
+        'bg_image' => $settings['bg_image'] ?? ''
     ];
+
+    // 处理背景图片上传
+    if (isset($_FILES['bg_image']) && $_FILES['bg_image']['error'] === UPLOAD_ERR_OK) {
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        $mime = finfo_file($finfo, $_FILES['bg_image']['tmp_name']);
+        finfo_close($finfo);
+        $allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+        if (in_array($mime, $allowed)) {
+            $ext = ['image/jpeg' => 'jpg', 'image/jpg' => 'jpg', 'image/png' => 'png', 'image/gif' => 'gif', 'image/webp' => 'webp'][$mime];
+            $dest = 'assets/img/bg_custom.' . $ext;
+            if (!is_dir('assets/img')) mkdir('assets/img', 0755, true);
+            if (move_uploaded_file($_FILES['bg_image']['tmp_name'], $dest)) {
+                $newSettings['bg_image'] = 'bg_custom.' . $ext;
+            }
+        } else {
+            $message = '错误：背景图片格式不支持，仅支持 JPG/PNG/GIF/WebP';
+        }
+    }
+
+    // 删除背景图片
+    if (isset($_POST['remove_bg'])) {
+        if (!empty($settings['bg_image']) && file_exists('assets/img/' . $settings['bg_image'])) {
+            unlink('assets/img/' . $settings['bg_image']);
+        }
+        $newSettings['bg_image'] = '';
+    }
 
     // 加密敏感字段
     foreach (getSensitiveFields() as $field) {
@@ -156,7 +183,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <h5><i class="bi bi-gear"></i> 系统设置</h5>
                     </div>
                     <div class="card-body">
-                        <form method="POST">
+                        <form method="POST" enctype="multipart/form-data">
                             <!-- GitHub配置区域 -->
                             <div class="card github-section mb-4">
                                 <div class="card-header">
@@ -336,6 +363,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 </div>
                             </div>
 
+                            <!-- 背景图配置区域 -->
+                            <div class="card mb-4" style="border-left: 4px solid #8b5cf6;">
+                                <div class="card-header">
+                                    <h6><i class="bi bi-image"></i> 背景图设置</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label">当前背景图</label>
+                                        <div class="mb-2">
+                                            <?php if (!empty($settings['bg_image']) && file_exists('assets/img/' . $settings['bg_image'])): ?>
+                                                <img src="assets/img/<?php echo $settings['bg_image']; ?>" class="img-fluid rounded border" style="max-height:120px;object-fit:cover;width:100%;">
+                                                <div class="mt-2">
+                                                    <label class="form-check-label">
+                                                        <input type="checkbox" name="remove_bg" value="1"> 删除自定义背景图，恢复默认
+                                                    </label>
+                                                </div>
+                                            <?php else: ?>
+                                                <div class="text-muted small py-3 text-center border rounded bg-light">使用默认背景图</div>
+                                                <img src="assets/img/bg.jpg" class="img-fluid rounded border mt-2" style="max-height:80px;object-fit:cover;width:100%;">
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                    <div class="mb-2">
+                                        <label for="bg_image_file" class="form-label">上传新背景图</label>
+                                        <input type="file" class="form-control form-control-sm" id="bg_image_file" name="bg_image" accept="image/*">
+                                        <div class="form-text">推荐尺寸 1920×1080，支持 JPG/PNG/GIF/WebP</div>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div class="d-flex justify-content-between">
                                 <a href="admin.php" class="btn btn-outline-secondary">
                                     <i class="bi bi-arrow-left"></i> 返回管理后台
@@ -353,55 +410,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <div class="card-header">
                         <h6><i class="bi bi-info-circle"></i> 当前配置信息</h6>
                     </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <h6>GitHub配置状态</h6>
-                                <ul class="list-unstyled">
-                                    <li><strong>Token配置:</strong> <?php echo empty($settings['github_token']) ? '<span class="text-danger">未配置</span>' : '<span class="text-success">已配置</span>'; ?></li>
-                                    <li><strong>仓库信息:</strong> <?php echo empty($settings['github_repo_owner']) || empty($settings['github_repo_name']) ? '<span class="text-danger">未配置</span>' : '<span class="text-success">' . $settings['github_repo_owner'] . '/' . $settings['github_repo_name'] . '</span>'; ?></li>
-                                    <li><strong>存储路径:</strong> <?php echo empty($settings['github_repo_path']) ? 'images' : $settings['github_repo_path']; ?></li>
-                                </ul>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-sm mb-0">
+                                <tbody>
+                                    <?php
+                                    $items = [];
 
-                                <h6 class="mt-3">WebDAV配置状态</h6>
-                                <ul class="list-unstyled">
-                                    <li><strong>服务器地址:</strong> <?php echo empty($settings['webdav_url']) ? '<span class="text-danger">未配置</span>' : '<span class="text-success">' . htmlspecialchars($settings['webdav_url']) . '</span>'; ?></li>
-                                    <li><strong>用户名:</strong> <?php echo empty($settings['webdav_username']) ? '<span class="text-danger">未配置</span>' : '<span class="text-success">' . htmlspecialchars($settings['webdav_username']) . '</span>'; ?></li>
-                                    <li><strong>存储路径:</strong> <?php echo empty($settings['webdav_path']) ? 'images' : $settings['webdav_path']; ?></li>
-                                </ul>
+                                    $ghOk = !empty($settings['github_token']) && !empty($settings['github_repo_owner']) && !empty($settings['github_repo_name']);
+                                    $items[] = ['label' => 'GitHub', 'value' => $ghOk ? $settings['github_repo_owner'] . '/' . $settings['github_repo_name'] : '未配置', 'status' => $ghOk ? 'success' : 'danger'];
 
-                                <h6 class="mt-3">存储配置状态</h6>
-                                <ul class="list-unstyled">
-                                    <li><strong>默认存储:</strong>
-                                        <?php
-                                        $defaultStorage = $settings['default_storage'] ?? 'local';
-                                        if ($defaultStorage === 'webdav' && (!empty($settings['webdav_url']) && !empty($settings['webdav_username']) && !empty($settings['webdav_password']))) {
-                                            echo '<span class="text-info">WebDAV存储</span>';
-                                        } elseif ($defaultStorage === 'webdav') {
-                                            echo '<span class="text-warning">WebDAV存储（配置不完整，实际使用本地存储）</span>';
-                                        } elseif ($defaultStorage === 'github' && (!empty($settings['github_token']) && !empty($settings['github_repo_owner']) && !empty($settings['github_repo_name']))) {
-                                            echo '<span class="text-success">GitHub存储</span>';
-                                        } elseif ($defaultStorage === 'github') {
-                                            echo '<span class="text-warning">GitHub存储（配置不完整，实际使用本地存储）</span>';
-                                        } else {
-                                            echo '<span class="text-primary">本地存储</span>';
-                                        }
-                                        ?>
-                                    </li>
-                                </ul>
-                            </div>
-                            <div class="col-md-6">
-                                <h6>域名配置状态</h6>
-                                <ul class="list-unstyled">
-                                    <li><strong>基础URL:</strong> <?php echo empty($settings['base_url']) ? '<span class="text-danger">未配置</span>' : '<span class="text-success">' . $settings['base_url'] . '</span>'; ?></li>
-                                    <li><strong>配置文件:</strong> <?php echo file_exists($settingsFile) ? '<span class="text-success">已创建</span>' : '<span class="text-danger">未创建</span>'; ?></li>
-                                </ul>
-                                <h6 class="mt-3">上传权限状态</h6>
-                                <ul class="list-unstyled">
-                                    <li><strong>登录要求:</strong> <?php echo $settings['require_login'] ? '<span class="text-danger">已启用</span>' : '<span class="text-success">未启用</span>'; ?></li>
-                                    <li><strong>当前状态:</strong> <?php echo $settings['require_login'] ? '需要登录才能上传' : '允许匿名上传'; ?></li>
-                                </ul>
-                            </div>
+                                    $wdOk = !empty($settings['webdav_url']) && !empty($settings['webdav_username']) && !empty($settings['webdav_password']);
+                                    $items[] = ['label' => 'WebDAV', 'value' => $wdOk ? htmlspecialchars($settings['webdav_url']) : '未配置', 'status' => $wdOk ? 'success' : 'danger'];
+
+                                    $defaultStorage = $settings['default_storage'] ?? 'local';
+                                    $storageMap = ['local' => '本地存储', 'github' => 'GitHub存储', 'webdav' => 'WebDAV存储'];
+                                    $storageLabel = $storageMap[$defaultStorage] ?? '本地存储';
+                                    $storageStatus = 'primary';
+                                    if ($defaultStorage === 'webdav' && !$wdOk) { $storageLabel = 'WebDAV存储（配置不完整，回退本地）'; $storageStatus = 'warning'; }
+                                    if ($defaultStorage === 'github' && !$ghOk) { $storageLabel = 'GitHub存储（配置不完整，回退本地）'; $storageStatus = 'warning'; }
+                                    $items[] = ['label' => '默认存储', 'value' => $storageLabel, 'status' => $storageStatus];
+
+                                    $items[] = ['label' => '基础URL', 'value' => empty($settings['base_url']) ? '未配置' : $settings['base_url'], 'status' => empty($settings['base_url']) ? 'danger' : 'success'];
+                                    $items[] = ['label' => '配置文件', 'value' => file_exists($settingsFile) ? '已创建' : '未创建', 'status' => file_exists($settingsFile) ? 'success' : 'danger'];
+                                    $items[] = ['label' => '登录要求', 'value' => $settings['require_login'] ? '已启用（需登录上传）' : '未启用（允许匿名上传）', 'status' => $settings['require_login'] ? 'danger' : 'success'];
+                                    $items[] = ['label' => '背景图', 'value' => !empty($settings['bg_image']) ? '自定义' : '默认', 'status' => !empty($settings['bg_image']) ? 'success' : 'secondary'];
+                                    ?>
+                                    <?php foreach ($items as $item): ?>
+                                    <tr>
+                                        <td class="text-muted ps-3" style="width:100px;font-size:0.85rem;"><?php echo $item['label']; ?></td>
+                                        <td class="fw-medium" style="font-size:0.85rem;"><?php echo $item['value']; ?></td>
+                                        <td class="text-end pe-3" style="width:60px;">
+                                            <span class="badge bg-<?php echo $item['status']; ?> rounded-pill" style="font-size:0.65rem;">
+                                                <?php echo $item['status'] === 'success' ? '正常' : ($item['status'] === 'warning' ? '注意' : ($item['status'] === 'danger' ? '未配' : '-')); ?>
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>

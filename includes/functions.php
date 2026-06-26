@@ -3,15 +3,10 @@ require_once __DIR__ . '/../config/database.php';
 
 function getImages($limit = null, $offset = 0) {
     $db = getDBConnection();
-    
-    if ($limit !== null) {
-        $stmt = $db->prepare("SELECT * FROM images ORDER BY upload_time DESC LIMIT :limit OFFSET :offset");
-        $stmt->bindValue(':limit', (int)$limit, PDO::PARAM_INT);
-        $stmt->bindValue(':offset', (int)$offset, PDO::PARAM_INT);
-        $stmt->execute();
-    } else {
-        $stmt = $db->query("SELECT * FROM images ORDER BY upload_time DESC");
-    }
+
+    $limitClause = $limit !== null ? " LIMIT " . (int)$limit . " OFFSET " . (int)$offset : "";
+
+    $stmt = $db->query("SELECT id, filename, original_name, tags, file_size, mime_type, github_url, webdav_url, local_path, upload_time, storage_type FROM images ORDER BY upload_time DESC" . $limitClause);
     
     $images = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
@@ -21,7 +16,6 @@ function getImages($limit = null, $offset = 0) {
         if ($image['storage_type'] === 'github' && !empty($image['github_url'])) {
             $image['url'] = $image['github_url'];
         } elseif ($image['storage_type'] === 'webdav' && !empty($image['webdav_url'])) {
-            // 使用代理脚本访问 WebDAV 图片
             $image['url'] = $baseUrl . '/proxy.php?id=' . $image['id'];
         } else {
             $localPath = ltrim($image['local_path'], '/');
@@ -81,17 +75,18 @@ function uploadToWebDAV($filePath, $filename) {
 
     $fullUrl = rtrim($webdavUrl, '/') . '/' . ltrim($remotePath, '/');
 
-    $fileContent = file_get_contents($filePath);
-    if ($fileContent === false) {
-        error_log("WebDAV upload failed: Could not read file - " . $filePath);
+    $fp = fopen($filePath, 'rb');
+    if (!$fp) {
+        error_log("WebDAV upload failed: Could not open file - " . $filePath);
         return false;
     }
 
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, $fullUrl);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'PUT');
-    curl_setopt($ch, CURLOPT_POSTFIELDS, $fileContent);
+    curl_setopt($ch, CURLOPT_PUT, true);
+    curl_setopt($ch, CURLOPT_INFILE, $fp);
+    curl_setopt($ch, CURLOPT_INFILESIZE, filesize($filePath));
     curl_setopt($ch, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
     curl_setopt($ch, CURLOPT_USERPWD, $webdavUsername . ':' . $webdavPassword);
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
@@ -105,6 +100,7 @@ function uploadToWebDAV($filePath, $filename) {
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $error = curl_error($ch);
+    fclose($fp);
     curl_close($ch);
 
     error_log("WebDAV Upload Response - HTTP Code: " . $httpCode . ", URL: " . $fullUrl);
@@ -286,6 +282,7 @@ function validateImage($file) {
         throw new Exception('文件大小超过限制');
     }
     
+    // 精确验证：用 finfo 确认 MIME
     $fileInfo = finfo_open(FILEINFO_MIME_TYPE);
     $mimeType = finfo_file($fileInfo, $file['tmp_name']);
     finfo_close($fileInfo);
@@ -313,7 +310,7 @@ function generateFilename($originalName) {
 function deleteImage($id) {
     $db = getDBConnection();
     
-    $stmt = $db->prepare("SELECT * FROM images WHERE id = ?");
+    $stmt = $db->prepare("SELECT id, local_path, storage_type FROM images WHERE id = ?");
     $stmt->execute([$id]);
     $image = $stmt->fetch(PDO::FETCH_ASSOC);
     
@@ -384,8 +381,11 @@ function getSensitiveFields() {
 }
 
 
-// 获取系统设置
+// 获取系统设置（带静态缓存，单次请求内只读一次文件）
 function getSettings() {
+    static $settings = null;
+    if ($settings !== null) return $settings;
+
     $settingsFile = 'config/settings.json';
     $defaultSettings = [
         'github_token' => '',
@@ -398,23 +398,25 @@ function getSettings() {
         'webdav_path' => 'images',
         'base_url' => '',
         'default_storage' => 'local',
-        'require_login' => false
+        'require_login' => false,
+        'bg_image' => ''
     ];
 
     if (file_exists($settingsFile)) {
         $savedSettings = json_decode(file_get_contents($settingsFile), true);
         if ($savedSettings) {
-            // 解密敏感字段
             foreach (getSensitiveFields() as $field) {
                 if (isset($savedSettings[$field])) {
                     $savedSettings[$field] = decryptSetting($savedSettings[$field]);
                 }
             }
-            return array_merge($defaultSettings, $savedSettings);
+            $settings = array_merge($defaultSettings, $savedSettings);
+            return $settings;
         }
     }
 
-    return $defaultSettings;
+    $settings = $defaultSettings;
+    return $settings;
 }
 
 // 获取配置值（优先使用动态设置，否则使用常量）

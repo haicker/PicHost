@@ -1,11 +1,7 @@
 <?php
-// 检查是否已安装 - 如果存在安装锁定文件，跳转到首页
-if (file_exists('.installed')) {
-    // 检查是否正在访问安装页面
-    if (basename($_SERVER['PHP_SELF']) === 'install.php') {
-        header('Location: index.php');
-        exit;
-    }
+if ((defined('INSTALLED') || file_exists('.installed')) && basename($_SERVER['PHP_SELF']) === 'install.php') {
+    header('Location: index.php');
+    exit;
 }
 
 function getCurrentBaseUrl() {
@@ -140,8 +136,9 @@ function saveDatabaseConfig($data) {
     $configContent .= "define('ADMIN_USERNAME', '');\n";
     $configContent .= "define('ADMIN_PASSWORD', '');\n\n";
     
+    $configContent .= "define('INSTALLED', true);\n\n";
     $configContent .= "error_reporting(E_ALL);\n";
-    $configContent .= "ini_set('display_errors', 1);\n\n";
+    $configContent .= "ini_set('display_errors', 0);\n\n";
     $configContent .= "session_start();\n";
     $configContent .= "?>";
     

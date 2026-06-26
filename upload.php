@@ -4,7 +4,6 @@ require_once 'includes/functions.php';
 
 header('Content-Type: application/json');
 
-// 加载设置
 $settings = getSettings();
 
 // 检查是否需要登录才能上传

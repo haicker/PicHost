@@ -1,6 +1,6 @@
 <?php
 // 安装检测 - 如果未安装，跳转到安装页面
-if (!file_exists('.installed')) {
+if (!defined('INSTALLED') && !file_exists('.installed')) {
     header('Location: install.php');
     exit;
 }
@@ -29,7 +29,7 @@ $showLoginPrompt = $requireLogin && !$isLoggedIn;
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="assets/css/style.css" rel="stylesheet">
 </head>
-<body>
+<body<?php if (!empty($settings['bg_image']) && file_exists('assets/img/' . $settings['bg_image'])): ?> style="background-image: linear-gradient(135deg, rgba(14, 165, 233, 0.7), rgba(59, 130, 246, 0.7)), url('assets/img/<?php echo $settings['bg_image']; ?>') !important;"<?php endif; ?>>
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container">
             <a class="navbar-brand" href="index.php">PicHost</a>

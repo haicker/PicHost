@@ -5,7 +5,7 @@
  */
 
 function isInstalled() {
-    return file_exists(__DIR__ . '/.installed');
+    return defined('INSTALLED') || file_exists(__DIR__ . '/.installed');
 }
 
 function markAsInstalled() {

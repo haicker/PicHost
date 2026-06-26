@@ -299,7 +299,7 @@ document.addEventListener('DOMContentLoaded', function() {
     window.toggleView = toggleView;
     window.clearAllImages = clearAllImages;
     window.copyUrlToClipboardModal = copyUrlToClipboardModal;
-    
+
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('action') === 'logout') {
         fetch('admin_actions.php?action=logout', {method: 'POST'})
@@ -307,4 +307,127 @@ document.addEventListener('DOMContentLoaded', function() {
                 window.location.href = 'admin_login.php';
             });
     }
+
+    // ===== 批量上传 =====
+    let batchFiles = [];
+    let batchUploading = false;
+
+    const batchFileInput = document.getElementById('batchFileInput');
+    const batchUploadBtn = document.getElementById('batchUploadBtn');
+    const batchFileLabel = document.getElementById('batchFileLabel');
+
+    if (batchFileInput) {
+        batchFileInput.addEventListener('change', function() {
+            handleBatchFiles(this.files);
+        });
+    }
+
+    function handleBatchFiles(files) {
+        if (batchUploading) return;
+        batchFiles = Array.from(files).filter(function(f) { return /^image\//.test(f.type); });
+        batchUploadBtn.disabled = batchFiles.length === 0;
+        if (batchFiles.length > 0) {
+            batchFileLabel.textContent = '已选 ' + batchFiles.length + ' 张';
+            batchUploadBtn.innerHTML = '<i class="fas fa-upload me-1"></i> 上传';
+        } else {
+            batchFileLabel.textContent = '选择图片';
+        }
+    }
+
+    window.startBatchUpload = function() {
+        if (batchUploading || batchFiles.length === 0) return;
+        batchUploading = true;
+        batchUploadBtn.disabled = true;
+
+        var tags = document.getElementById('batchTags').value;
+        var progressDiv = document.getElementById('batchProgress');
+        var progressBar = document.getElementById('batchProgressBar');
+        var batchStatus = document.getElementById('batchStatus');
+        var batchCount = document.getElementById('batchCount');
+        var batchResults = document.getElementById('batchResults');
+
+        progressDiv.style.display = 'block';
+        batchResults.innerHTML = '';
+        batchStatus.textContent = '上传中...';
+
+        var completed = 0;
+        var successCount = 0;
+        var failCount = 0;
+        var total = batchFiles.length;
+
+        function uploadNext(index) {
+            if (index >= total) {
+                batchStatus.textContent = '上传完成：成功 ' + successCount + ' 张' + (failCount > 0 ? '，失败 ' + failCount + ' 张' : '');
+                batchUploadBtn.innerHTML = '<i class="fas fa-check me-1"></i> 完成';
+                batchUploading = false;
+                batchFiles = [];
+                batchFileLabel.textContent = '选择图片';
+                setTimeout(function() { location.reload(); }, 2000);
+                return;
+            }
+
+            var file = batchFiles[index];
+            var fd = new FormData();
+            fd.append('image', file);
+            fd.append('tags', tags);
+
+            var xhr = new XMLHttpRequest();
+            xhr.upload.addEventListener('progress', function(e) {
+                if (e.lengthComputable) {
+                    var filePct = (e.loaded / e.total) * 0.9;
+                    var overallPct = ((index + filePct) / total) * 100;
+                    progressBar.style.width = overallPct + '%';
+                    batchCount.textContent = (index + 1) + ' / ' + total;
+                }
+            });
+
+            xhr.addEventListener('load', function() {
+                completed++;
+                var progressPct = (completed / total) * 100;
+                progressBar.style.width = progressPct + '%';
+                batchCount.textContent = completed + ' / ' + total;
+
+                try {
+                    var resp = JSON.parse(xhr.responseText);
+                    var div = document.createElement('div');
+                    div.className = 'batch-result-item ' + (resp.success ? 'success' : 'error');
+                    if (resp.success) {
+                        successCount++;
+                        div.textContent = '\u2713 ' + file.name;
+                    } else {
+                        failCount++;
+                        div.textContent = '\u2717 ' + file.name + ' \u2014 ' + resp.message;
+                    }
+                    batchResults.appendChild(div);
+                    batchResults.scrollTop = batchResults.scrollHeight;
+                } catch (e) {
+                    failCount++;
+                    var div = document.createElement('div');
+                    div.className = 'batch-result-item error';
+                    div.textContent = '\u2717 ' + file.name + ' \u2014 \u670d\u52a1\u5668\u54cd\u5e94\u9519\u8bef';
+                    batchResults.appendChild(div);
+                }
+
+                uploadNext(index + 1);
+            });
+
+            xhr.addEventListener('error', function() {
+                completed++;
+                failCount++;
+                var progressPct = (completed / total) * 100;
+                progressBar.style.width = progressPct + '%';
+                batchCount.textContent = completed + ' / ' + total;
+                var div = document.createElement('div');
+                div.className = 'batch-result-item error';
+                div.textContent = '\u2717 ' + file.name + ' \u2014 \u7f51\u7edc\u9519\u8bef';
+                batchResults.appendChild(div);
+                uploadNext(index + 1);
+            });
+
+            xhr.open('POST', 'upload.php');
+            xhr.send(fd);
+        }
+
+        uploadNext(0);
+    };
 });

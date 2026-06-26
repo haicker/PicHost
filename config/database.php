@@ -47,16 +47,28 @@ function initDatabase() {
             if (!in_array('webdav_url', $columns)) {
                 $db->exec("ALTER TABLE images ADD COLUMN webdav_url VARCHAR(500) AFTER github_url");
             }
-            // 更新storage_type的ENUM值以包含'webdav'
             $typeCol = $db->query("SHOW COLUMNS FROM images LIKE 'storage_type'")->fetch();
             if ($typeCol && strpos($typeCol['Type'], 'webdav') === false) {
                 $db->exec("ALTER TABLE images MODIFY COLUMN storage_type ENUM('local', 'github', 'webdav') DEFAULT 'local'");
             }
+        }
+
+        // 添加索引（忽略已存在的错误）
+        $indexes = [
+            "ALTER TABLE images ADD INDEX idx_upload_time (upload_time DESC)",
+            "ALTER TABLE images ADD INDEX idx_storage_type (storage_type)",
+            "ALTER TABLE images ADD INDEX idx_filename (filename)"
+        ];
+        foreach ($indexes as $idxSql) {
+            try { $db->exec($idxSql); } catch (PDOException $e) {}
         }
     } catch (PDOException $e) {
         die("数据库初始化失败: " . $e->getMessage());
     }
 }
 
-initDatabase();
+// 仅首次安装或升级时执行 DDL，普通请求跳过
+if (!defined('INSTALLED') && !file_exists('.installed')) {
+    initDatabase();
+}
 ?>

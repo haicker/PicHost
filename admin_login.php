@@ -1,6 +1,6 @@
 <?php
-// 安装检测 - 如果未安装，跳转到安装页面
-if (!file_exists('.installed')) {
+// 安装检测
+if (!defined('INSTALLED') && !file_exists('.installed')) {
     header('Location: install.php');
     exit;
 }
