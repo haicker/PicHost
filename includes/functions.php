@@ -6,7 +6,7 @@ function getImages($limit = null, $offset = 0) {
 
     $limitClause = $limit !== null ? " LIMIT " . (int)$limit . " OFFSET " . (int)$offset : "";
 
-    $stmt = $db->query("SELECT id, filename, original_name, tags, file_size, mime_type, github_url, webdav_url, local_path, upload_time, storage_type FROM images ORDER BY upload_time DESC" . $limitClause);
+    $stmt = $db->query("SELECT id, filename, original_name, tags, file_size, mime_type, github_url, webdav_url, telegram_url, local_path, upload_time, storage_type FROM images ORDER BY upload_time DESC" . $limitClause);
     
     $images = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
@@ -17,10 +17,13 @@ function getImages($limit = null, $offset = 0) {
             $image['url'] = $image['github_url'];
         } elseif ($image['storage_type'] === 'webdav' && !empty($image['webdav_url'])) {
             $image['url'] = $baseUrl . '/proxy.php?id=' . $image['id'];
+        } elseif ($image['storage_type'] === 'telegram' && !empty($image['telegram_url'])) {
+            $image['url'] = $baseUrl . '/proxy.php?id=' . $image['id'];
         } else {
             $localPath = ltrim($image['local_path'], '/');
             $image['url'] = $baseUrl . '/' . $localPath;
         }
+        $image['thumb_url'] = getThumbnailUrl($image);
     }
     
     return $images;
@@ -35,8 +38,8 @@ function getImageCount() {
 
 function saveImageToDB($imageData) {
     $db = getDBConnection();
-    $sql = "INSERT INTO images (filename, original_name, tags, file_size, mime_type, github_url, webdav_url, local_path, storage_type) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    $sql = "INSERT INTO images (filename, original_name, tags, file_size, mime_type, github_url, webdav_url, telegram_url, local_path, storage_type) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
     $stmt = $db->prepare($sql);
     return $stmt->execute([
         $imageData['filename'],
@@ -46,6 +49,7 @@ function saveImageToDB($imageData) {
         $imageData['mime_type'],
         $imageData['github_url'],
         $imageData['webdav_url'],
+        $imageData['telegram_url'],
         $imageData['local_path'],
         $imageData['storage_type']
     ]);
@@ -307,10 +311,67 @@ function generateFilename($originalName) {
     return uniqid() . '_' . time() . '.' . $extension;
 }
 
+function getThumbPath($filename) {
+    return 'uploads/thumbs/' . $filename;
+}
+
+function generateThumbnail($sourcePath, $filename, $maxSize = 400) {
+    if (!function_exists('imagecreatefromjpeg')) {
+        return false;
+    }
+
+    $thumbDir = 'uploads/thumbs';
+    if (!is_dir($thumbDir)) {
+        mkdir($thumbDir, 0755, true);
+    }
+
+    $thumbPath = $thumbDir . '/' . $filename;
+
+    if (!file_exists($sourcePath)) {
+        return false;
+    }
+
+    list($origW, $origH) = getimagesize($sourcePath);
+    if (!$origW || !$origH) return false;
+
+    $ratio = min($maxSize / $origW, $maxSize / $origH, 1);
+    $newW = (int)round($origW * $ratio);
+    $newH = (int)round($origH * $ratio);
+
+    $src = null;
+    $ext = strtolower(pathinfo($sourcePath, PATHINFO_EXTENSION));
+    if ($ext === 'jpg' || $ext === 'jpeg') $src = imagecreatefromjpeg($sourcePath);
+    elseif ($ext === 'png') $src = imagecreatefrompng($sourcePath);
+    elseif ($ext === 'gif') $src = imagecreatefromgif($sourcePath);
+    elseif ($ext === 'webp') $src = @imagecreatefromwebp($sourcePath);
+    if (!$src) return false;
+
+    $thumb = imagecreatetruecolor($newW, $newH);
+    imagealphablending($thumb, false);
+    imagesavealpha($thumb, true);
+    imagecopyresampled($thumb, $src, 0, 0, 0, 0, $newW, $newH, $origW, $origH);
+
+    $ok = imagejpeg($thumb, $thumbPath, 85);
+    imagedestroy($src);
+    imagedestroy($thumb);
+
+    return $ok ? $thumbPath : false;
+}
+
+function getThumbnailUrl($image) {
+    $baseUrl = rtrim(getConfig('base_url'), '/');
+    $filename = pathinfo($image['filename'] ?? $image['local_path'], PATHINFO_BASENAME);
+    $thumbPath = 'uploads/thumbs/' . $filename;
+    if (file_exists($thumbPath)) {
+        return $baseUrl . '/' . $thumbPath;
+    }
+    return $image['url'] ?? '';
+}
+
 function deleteImage($id) {
     $db = getDBConnection();
     
-    $stmt = $db->prepare("SELECT id, local_path, storage_type FROM images WHERE id = ?");
+    $stmt = $db->prepare("SELECT id, local_path, storage_type, filename FROM images WHERE id = ?");
     $stmt->execute([$id]);
     $image = $stmt->fetch(PDO::FETCH_ASSOC);
     
@@ -320,6 +381,11 @@ function deleteImage($id) {
     
     if ($image['storage_type'] === 'local' && file_exists($image['local_path'])) {
         unlink($image['local_path']);
+    }
+    
+    $thumbPath = getThumbPath($image['filename']);
+    if (file_exists($thumbPath)) {
+        unlink($thumbPath);
     }
     
     $stmt = $db->prepare("DELETE FROM images WHERE id = ?");
@@ -377,7 +443,7 @@ function decryptSetting($value) {
 
 // 需要加/解密的敏感字段列表
 function getSensitiveFields() {
-    return ['github_token', 'webdav_username', 'webdav_password'];
+    return ['github_token', 'webdav_username', 'webdav_password', 'telegram_bot_token'];
 }
 
 
@@ -396,6 +462,8 @@ function getSettings() {
         'webdav_username' => '',
         'webdav_password' => '',
         'webdav_path' => 'images',
+        'telegram_bot_token' => '',
+        'telegram_chat_id' => '',
         'base_url' => '',
         'default_storage' => 'local',
         'require_login' => false,
@@ -469,6 +537,97 @@ function isWebDAVConfigured() {
     $password = getConfig('webdav_password');
 
     return !empty($url) && !empty($username) && !empty($password);
+}
+
+function isTelegramConfigured() {
+    $botToken = getConfig('telegram_bot_token');
+    $chatId = getConfig('telegram_chat_id');
+
+    return !empty($botToken) && !empty($chatId);
+}
+
+function uploadToTelegram($filePath, $filename) {
+    $botToken = getConfig('telegram_bot_token');
+    $chatId = getConfig('telegram_chat_id');
+
+    if (empty($botToken) || empty($chatId)) {
+        error_log("Telegram upload failed: Missing required configuration");
+        return false;
+    }
+
+    if (!file_exists($filePath)) {
+        error_log("Telegram upload failed: File not found - " . $filePath);
+        return false;
+    }
+
+    $apiUrl = "https://api.telegram.org/bot" . $botToken . "/sendDocument";
+
+    $cFile = new CURLFile($filePath, mime_content_type($filePath), $filename);
+
+    $postData = [
+        'chat_id' => $chatId,
+        'document' => $cFile,
+        'disable_notification' => true
+    ];
+
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $apiUrl);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+    curl_setopt($ch, CURLOPT_POST, 1);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 120);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'User-Agent: PHP-Image-Hosting'
+    ]);
+
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $error = curl_error($ch);
+    curl_close($ch);
+
+    error_log("Telegram Upload Response - HTTP Code: " . $httpCode . ", Response: " . $response);
+    if ($error) {
+        error_log("cURL Error: " . $error);
+    }
+
+    if ($httpCode === 200) {
+        $responseData = json_decode($response, true);
+        if (isset($responseData['result']['document']['file_id'])) {
+            $fileId = $responseData['result']['document']['file_id'];
+            return "https://api.telegram.org/file/bot" . $botToken . "/" . getTelegramFilePath($botToken, $fileId);
+        }
+    }
+
+    return false;
+}
+
+function getTelegramFilePath($botToken, $fileId) {
+    $apiUrl = "https://api.telegram.org/bot" . $botToken . "/getFile";
+
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $apiUrl);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+    curl_setopt($ch, CURLOPT_POST, 1);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, ['file_id' => $fileId]);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'User-Agent: PHP-Image-Hosting'
+    ]);
+
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if ($httpCode === 200) {
+        $responseData = json_decode($response, true);
+        if (isset($responseData['result']['file_path'])) {
+            return $responseData['result']['file_path'];
+        }
+    }
+
+    return '';
 }
 
 function formatFileSize($bytes) {

@@ -31,12 +31,16 @@ function clearAllImages() {
     try {
         $db->beginTransaction();
         
-        $stmt = $db->query("SELECT id, local_path, storage_type FROM images");
+        $stmt = $db->query("SELECT id, local_path, storage_type, filename FROM images");
         $images = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
         foreach ($images as $image) {
             if ($image['storage_type'] === 'local' && file_exists($image['local_path'])) {
                 unlink($image['local_path']);
+            }
+            $thumbPath = getThumbPath($image['filename']);
+            if (file_exists($thumbPath)) {
+                unlink($thumbPath);
             }
         }
         

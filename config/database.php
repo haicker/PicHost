@@ -28,9 +28,10 @@ function initDatabase() {
         mime_type VARCHAR(100) NOT NULL,
         github_url VARCHAR(500),
         webdav_url VARCHAR(500),
+        telegram_url VARCHAR(500),
         local_path VARCHAR(500),
         upload_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-        storage_type ENUM('local', 'github', 'webdav') DEFAULT 'local'
+        storage_type ENUM('local', 'github', 'webdav', 'telegram') DEFAULT 'local'
     )";
     
     try {
@@ -47,9 +48,12 @@ function initDatabase() {
             if (!in_array('webdav_url', $columns)) {
                 $db->exec("ALTER TABLE images ADD COLUMN webdav_url VARCHAR(500) AFTER github_url");
             }
+            if (!in_array('telegram_url', $columns)) {
+                $db->exec("ALTER TABLE images ADD COLUMN telegram_url VARCHAR(500) AFTER webdav_url");
+            }
             $typeCol = $db->query("SHOW COLUMNS FROM images LIKE 'storage_type'")->fetch();
-            if ($typeCol && strpos($typeCol['Type'], 'webdav') === false) {
-                $db->exec("ALTER TABLE images MODIFY COLUMN storage_type ENUM('local', 'github', 'webdav') DEFAULT 'local'");
+            if ($typeCol && strpos($typeCol['Type'], 'telegram') === false) {
+                $db->exec("ALTER TABLE images MODIFY COLUMN storage_type ENUM('local', 'github', 'webdav', 'telegram') DEFAULT 'local'");
             }
         }
 

@@ -44,8 +44,12 @@ try {
         throw new Exception('文件保存失败');
     }
     
+    // 生成缩略图
+    generateThumbnail($localPath, $filename);
+    
     $githubUrl = null;
     $webdavUrl = null;
+    $telegramUrl = null;
     $storageType = 'local';
 
     // 获取默认存储类型
@@ -58,7 +62,6 @@ try {
         if ($webdavUrl) {
             $storageType = 'webdav';
         } else {
-            // WebDAV上传失败，回退到本地存储
             error_log("WebDAV upload failed, falling back to local storage");
             $fallbackMessage = 'WebDAV 服务器连接失败，已自动回退到本地存储';
         }
@@ -67,9 +70,16 @@ try {
         if ($githubUrl) {
             $storageType = 'github';
         } else {
-            // GitHub上传失败，回退到本地存储
             error_log("GitHub upload failed, falling back to local storage");
             $fallbackMessage = 'GitHub 上传失败，已自动回退到本地存储';
+        }
+    } elseif ($defaultStorage === 'telegram' && isTelegramConfigured()) {
+        $telegramUrl = uploadToTelegram($localPath, $filename);
+        if ($telegramUrl) {
+            $storageType = 'telegram';
+        } else {
+            error_log("Telegram upload failed, falling back to local storage");
+            $fallbackMessage = 'Telegram 上传失败，已自动回退到本地存储';
         }
     }
     
@@ -81,6 +91,7 @@ try {
         'mime_type' => $mimeType,
         'github_url' => $githubUrl,
         'webdav_url' => $webdavUrl,
+        'telegram_url' => $telegramUrl,
         'local_path' => $localPath,
         'storage_type' => $storageType
     ];
@@ -92,10 +103,11 @@ try {
         
         // 生成正确的图片访问URL
         if ($webdavUrl) {
-            // WebDAV存储使用代理链接
             $imageUrl = rtrim(getConfig('base_url'), '/') . '/proxy.php?id=' . $imageId;
         } elseif ($githubUrl) {
             $imageUrl = $githubUrl;
+        } elseif ($telegramUrl) {
+            $imageUrl = rtrim(getConfig('base_url'), '/') . '/proxy.php?id=' . $imageId;
         } else {
             // 确保本地图片URL格式正确
             $localPath = ltrim($localPath, '/');

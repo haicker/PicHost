@@ -10,13 +10,161 @@ body {
     max-width: 1400px;
 }
 
-.container-fluid {
-    max-width: 1400px;
+/* ========== 侧边栏布局 ========== */
+.admin-wrapper {
+    display: flex;
+    min-height: calc(100vh - 56px);
+}
+
+.admin-sidebar {
+    width: 240px;
+    min-width: 240px;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(20px);
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 1.5rem 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-brand {
+    padding: 0 1.25rem;
+    margin-bottom: 1.5rem;
+}
+
+.sidebar-brand h5 {
+    margin: 0;
+    font-weight: 700;
+    font-size: 1.2rem;
+    background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.sidebar-brand small {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.75rem;
+}
+
+.sidebar-nav {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    flex: 1;
+}
+
+.sidebar-nav-item {
+    margin-bottom: 2px;
+}
+
+.sidebar-nav-link {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1.25rem;
+    color: rgba(255, 255, 255, 0.7);
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 0.9rem;
+    border-radius: 0;
+    transition: all 0.2s ease;
+    border-left: 3px solid transparent;
+}
+
+.sidebar-nav-link:hover {
+    color: white;
+    background: rgba(255, 255, 255, 0.08);
+    border-left-color: rgba(255, 255, 255, 0.3);
+}
+
+.sidebar-nav-link.active {
+    color: white;
+    background: rgba(14, 165, 233, 0.15);
+    border-left-color: #0ea5e9;
+}
+
+.sidebar-nav-link i {
+    width: 20px;
+    text-align: center;
+    margin-right: 0.75rem;
+    font-size: 1rem;
+}
+
+.sidebar-nav-link .nav-badge {
+    margin-left: auto;
+    font-size: 0.7rem;
+}
+
+.sidebar-divider {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.1);
+    margin: 1rem 1.25rem;
+}
+
+.sidebar-footer {
+    padding: 1rem 1.25rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-footer .user-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.sidebar-footer .user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #0ea5e9, #3b82f6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 700;
+    font-size: 0.85rem;
+}
+
+.sidebar-footer .user-name {
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.sidebar-footer .sidebar-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.sidebar-footer .sidebar-actions a,
+.sidebar-footer .sidebar-actions button {
+    flex: 1;
+    font-size: 0.78rem;
+    padding: 0.35rem 0;
+}
+
+.admin-main {
+    flex: 1;
+    padding: 1.5rem;
+    overflow-x: hidden;
+    max-width: 1160px;
+}
+
+/* 侧边栏移动端切换按钮 */
+.sidebar-toggle {
+    display: none;
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.25rem;
+    padding: 0.25rem 0.75rem;
+    cursor: pointer;
 }
 
 /* 导航栏样式 */
 .navbar {
-    background: rgba(0, 0, 0, 0.8) !important;
+    background: rgba(0, 0, 0, 0.85) !important;
     backdrop-filter: blur(20px);
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     padding: 0.6rem 0;
@@ -84,6 +232,27 @@ body {
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
     backdrop-filter: blur(10px);
     background: rgba(255, 255, 255, 0.95);
+}
+
+/* 存储管理页面卡片 */
+.storage-card {
+    border-left: 4px solid #0d6efd;
+}
+
+.storage-card.storage-github {
+    border-left-color: #28a745;
+}
+
+.storage-card.storage-webdav {
+    border-left-color: #17a2b8;
+}
+
+.storage-card.storage-telegram {
+    border-left-color: #dc3545;
+}
+
+.storage-card.storage-type {
+    border-left-color: #6f42c1;
 }
 
 /* 表格样式 */
@@ -332,34 +501,78 @@ body {
     color: #721c24;
 }
 
-/* 响应式设计 */
-@media (max-width: 768px) {
-    .container-fluid {
-        padding: 0 1rem;
+/* ========== 侧边栏遮罩层 ========== */
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1040;
+}
+
+/* ========== 响应式设计 ========== */
+@media (max-width: 991.98px) {
+    .sidebar-toggle {
+        display: inline-block;
     }
-    
+
+    .admin-wrapper {
+        min-height: calc(100vh - 56px);
+    }
+
+    .admin-sidebar {
+        position: fixed;
+        top: 56px;
+        left: -240px;
+        height: calc(100vh - 56px);
+        z-index: 1050;
+        transition: left 0.3s ease;
+        overflow-y: auto;
+    }
+
+    .admin-sidebar.show {
+        left: 0;
+    }
+
+    .sidebar-overlay.show {
+        display: block;
+    }
+
+    .admin-main {
+        padding: 1rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .admin-main {
+        padding: 0.75rem;
+    }
+
     .card {
         border-radius: 12px;
-        margin: 0 0.5rem;
+        margin: 0 0.25rem;
     }
-    
+
     .card-body {
         padding: 1rem;
     }
-    
+
     .table {
         font-size: 0.9rem;
     }
-    
+
     .image-preview {
         max-width: 80px;
         max-height: 80px;
     }
-    
+
     .btn-group {
         flex-wrap: wrap;
     }
-    
+
     .stat-card {
         margin-bottom: 1rem;
     }
@@ -369,11 +582,11 @@ body {
     .card-header {
         padding: 1rem;
     }
-    
+
     .card-header h5 {
         font-size: 1.1rem;
     }
-    
+
     .btn-group .btn {
         width: 100%;
         margin-bottom: 0.5rem;
@@ -395,15 +608,20 @@ body {
 @media print {
     .navbar,
     .btn,
-    .btn-group {
+    .btn-group,
+    .admin-sidebar {
         display: none !important;
     }
-    
+
+    .admin-wrapper {
+        display: block;
+    }
+
     .card {
         box-shadow: none !important;
         border: 1px solid #ddd !important;
     }
-    
+
     .table {
         font-size: 10pt;
     }

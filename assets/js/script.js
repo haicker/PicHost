@@ -128,6 +128,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 storageTypeText = 'GitHub存储';
                 storageTypeClass = 'badge bg-success';
                 break;
+            case 'telegram':
+                storageTypeText = 'Telegram存储';
+                storageTypeClass = 'badge bg-danger';
+                break;
             default:
                 storageTypeText = '本地存储';
                 storageTypeClass = 'badge bg-secondary';

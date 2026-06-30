@@ -4,6 +4,16 @@ document.addEventListener('DOMContentLoaded', function() {
     initTagFilter();
     initLazyLoading();
     
+    // ===== 侧边栏切换 =====
+    window.toggleSidebar = function() {
+        var sidebar = document.getElementById('adminSidebar');
+        var overlay = document.getElementById('sidebarOverlay');
+        if (sidebar && overlay) {
+            sidebar.classList.toggle('show');
+            overlay.classList.toggle('show');
+        }
+    };
+
     function toggleView(view) {
         currentView = view;
         const gridView = document.getElementById('imageGridView');
@@ -71,9 +81,9 @@ document.addEventListener('DOMContentLoaded', function() {
         btnClose.setAttribute('data-bs-dismiss', 'alert');
         alertDiv.appendChild(btnClose);
         
-        const container = document.querySelector('.container-fluid');
-        if (container && container.firstChild) {
-            container.insertBefore(alertDiv, container.firstChild);
+        const main = document.querySelector('.admin-main');
+        if (main && main.firstChild) {
+            main.insertBefore(alertDiv, main.firstChild);
         }
         
         setTimeout(() => {

@@ -26,33 +26,19 @@ function detectBaseUrl() {
     return $protocol . '://' . $host . $scriptDir;
 }
 
-// 加载设置（通过 getSettings 自动解密敏感字段）
 $settings = getSettings();
-
-// 初始化默认值，兼容旧版本 settings.json 中可能缺失的字段
-$settings['github_repo_path'] = $settings['github_repo_path'] ?? 'images';
-$settings['webdav_path'] = $settings['webdav_path'] ?? 'images';
+$settings['base_url'] = $settings['base_url'] ?? '';
 $settings['require_login'] = $settings['require_login'] ?? false;
-$settings['default_storage'] = $settings['default_storage'] ?? 'local';
 $settings['bg_image'] = $settings['bg_image'] ?? '';
 
-
-// 处理表单提交
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $newSettings = [
-        'github_token' => trim($_POST['github_token'] ?? ''),
-        'github_repo_owner' => trim($_POST['github_repo_owner'] ?? ''),
-        'github_repo_name' => trim($_POST['github_repo_name'] ?? ''),
-        'github_repo_path' => trim($_POST['github_repo_path'] ?? ''),
-        'webdav_url' => trim($_POST['webdav_url'] ?? ''),
-        'webdav_username' => trim($_POST['webdav_username'] ?? ''),
-        'webdav_password' => trim($_POST['webdav_password'] ?? ''),
-        'webdav_path' => trim($_POST['webdav_path'] ?? 'images'),
-        'base_url' => trim($_POST['base_url'] ?? ''),
-        'require_login' => isset($_POST['require_login']) && $_POST['require_login'] === '1',
-        'default_storage' => trim($_POST['default_storage'] ?? 'local'),
-        'bg_image' => $settings['bg_image'] ?? ''
-    ];
+    $newSettings = getSettings();
+
+    if (isset($_POST['save_settings'])) {
+        $newSettings['base_url'] = trim($_POST['base_url'] ?? '');
+        $newSettings['require_login'] = isset($_POST['require_login']) && $_POST['require_login'] === '1';
+        $newSettings['bg_image'] = $settings['bg_image'] ?? '';
+    }
 
     // 处理背景图片上传
     if (isset($_FILES['bg_image']) && $_FILES['bg_image']['error'] === UPLOAD_ERR_OK) {
@@ -80,54 +66,57 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $newSettings['bg_image'] = '';
     }
 
-    // 加密敏感字段
-    foreach (getSensitiveFields() as $field) {
-        if (isset($newSettings[$field])) {
-            $newSettings[$field] = encryptSetting($newSettings[$field]);
-        }
-    }
-
     // 验证基础URL格式
     if (!empty($newSettings['base_url']) && !filter_var($newSettings['base_url'], FILTER_VALIDATE_URL)) {
         $message = '错误：基础URL格式不正确';
     } else {
-        // 如果选择了GitHub存储，但GitHub配置不完整，给出警告
-        if ($newSettings['default_storage'] === 'github') {
-            if (empty($newSettings['github_token']) || empty($newSettings['github_repo_owner']) || empty($newSettings['github_repo_name'])) {
-                $message = '警告：选择了GitHub存储，但GitHub配置不完整。系统将使用本地存储。';
-            }
-        }
-        
-        // 如果选择了WebDAV存储，但WebDAV配置不完整，给出警告
-        if ($newSettings['default_storage'] === 'webdav') {
-            if (empty($newSettings['webdav_url']) || empty($newSettings['webdav_username']) || empty($newSettings['webdav_password'])) {
-                $message = '警告：选择了WebDAV存储，但WebDAV配置不完整。系统将使用本地存储。';
-            }
-        }
-
-        // 确保配置目录存在
         if (!is_dir('config')) {
             mkdir('config', 0755, true);
         }
 
-        // 保存设置到文件
+        foreach (getSensitiveFields() as $field) {
+            if (isset($newSettings[$field])) {
+                $newSettings[$field] = encryptSetting($newSettings[$field]);
+            }
+        }
+
         if (file_put_contents($settingsFile, json_encode($newSettings, JSON_PRETTY_PRINT))) {
             if (empty($message)) {
                 $message = '设置保存成功！';
             }
-            // 解密后用于表单回显
             $settings = $newSettings;
             foreach (getSensitiveFields() as $field) {
                 if (isset($settings[$field])) {
                     $settings[$field] = decryptSetting($settings[$field]);
                 }
             }
-
         } else {
             $message = '错误：设置保存失败';
         }
     }
 }
+
+// 重新生成所有缩略图
+if (isset($_POST['regenerate_thumbs'])) {
+    $db = getDBConnection();
+    $stmt = $db->query("SELECT id, local_path, storage_type, filename FROM images ORDER BY id");
+    $count = 0;
+    $errors = 0;
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        $source = null;
+        if ($row['storage_type'] === 'local' && file_exists($row['local_path'])) {
+            $source = $row['local_path'];
+        }
+        if ($source && generateThumbnail($source, $row['filename'])) {
+            $count++;
+        } elseif ($source) {
+            $errors++;
+        }
+    }
+    $message = "缩略图生成完成：成功 {$count} 张" . ($errors ? "，失败 {$errors} 张" : '');
+}
+
+$currentPage = 'settings';
 ?>
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -135,280 +124,166 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>系统设置 - PicHost</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="shortcut icon" href="favicon.svg" type="image/svg+xml">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="assets/css/admin.css" rel="stylesheet">
-    <style>
-        .settings-card {
-            border-left: 4px solid #0d6efd;
-        }
-        .github-section {
-            border-left: 4px solid #28a745;
-        }
-        .domain-section {
-            border-left: 4px solid #ffc107;
-        }
-    </style>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container">
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container-fluid">
+            <button class="sidebar-toggle" onclick="toggleSidebar()">
+                <i class="fas fa-bars"></i>
+            </button>
             <a class="navbar-brand" href="admin.php">
-                <i class="bi bi-images"></i> 图床管理后台
+                <i class="fas fa-images"></i> PicHost
             </a>
-            <div class="navbar-nav ms-auto">
-                <span class="navbar-text me-3">
-                    欢迎, <?php echo htmlspecialchars($_SESSION['admin_username']); ?>
-                </span>
-                <a class="nav-link" href="admin.php">图片管理</a>
-                <a class="nav-link active" href="admin_settings.php">系统设置</a>
-                <a class="nav-link" href="index.php">返回前台</a>
-                <a class="nav-link" href="admin.php?action=logout">退出登录</a>
+            <div class="navbar-nav ms-auto d-none d-lg-flex">
+                <a class="nav-link" href="index.php"><i class="fas fa-globe me-1"></i>返回前台</a>
             </div>
         </div>
     </nav>
 
-    <div class="container-fluid mt-4">
-        <?php if ($message): ?>
-            <div class="alert alert-<?php echo strpos($message, '错误') !== false ? 'danger' : 'success'; ?> alert-dismissible fade show" role="alert">
-                <?php echo $message; ?>
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        <?php endif; ?>
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
 
-        <div class="row">
-            <div class="col-md-8 mx-auto">
-                <div class="card settings-card">
+    <div class="admin-wrapper">
+        <aside class="admin-sidebar" id="adminSidebar">
+            <div class="sidebar-brand">
+                <h5>PicHost</h5>
+                <small>图床管理后台</small>
+            </div>
+
+            <ul class="sidebar-nav">
+                <li class="sidebar-nav-item">
+                    <a class="sidebar-nav-link" href="admin.php">
+                        <i class="fas fa-images"></i>
+                        <span>图片管理</span>
+                    </a>
+                </li>
+                <li class="sidebar-nav-item">
+                    <a class="sidebar-nav-link" href="admin_storage.php">
+                        <i class="fas fa-hdd"></i>
+                        <span>储存管理</span>
+                    </a>
+                </li>
+                <li class="sidebar-nav-item">
+                    <a class="sidebar-nav-link active" href="admin_settings.php">
+                        <i class="fas fa-cog"></i>
+                        <span>系统设置</span>
+                    </a>
+                </li>
+
+                <li><div class="sidebar-divider"></div></li>
+
+                <li class="sidebar-nav-item">
+                    <a class="sidebar-nav-link" href="index.php">
+                        <i class="fas fa-globe"></i>
+                        <span>返回前台</span>
+                    </a>
+                </li>
+            </ul>
+
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar">
+                        <?php echo strtoupper(mb_substr($_SESSION['admin_username'], 0, 1)); ?>
+                    </div>
+                    <div class="user-name"><?php echo htmlspecialchars($_SESSION['admin_username']); ?></div>
+                </div>
+                <div class="sidebar-actions">
+                    <a href="index.php" class="btn btn-outline-light btn-sm">
+                        <i class="fas fa-home me-1"></i>前台
+                    </a>
+                    <a href="admin.php?action=logout" class="btn btn-outline-light btn-sm">
+                        <i class="fas fa-sign-out-alt me-1"></i>退出
+                    </a>
+                </div>
+            </div>
+        </aside>
+
+        <main class="admin-main">
+            <?php if ($message): ?>
+                <div class="alert alert-<?php echo strpos($message, '错误') !== false ? 'danger' : 'success'; ?> alert-dismissible fade show" role="alert">
+                    <?php echo $message; ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            <?php endif; ?>
+
+            <form method="POST" enctype="multipart/form-data">
+                <!-- 域名配置 -->
+                <div class="card" style="border-left: 4px solid #ffc107;">
                     <div class="card-header">
-                        <h5><i class="bi bi-gear"></i> 系统设置</h5>
+                        <h5 class="mb-0"><i class="fas fa-globe me-2"></i>域名配置</h5>
                     </div>
                     <div class="card-body">
-                        <form method="POST" enctype="multipart/form-data">
-                            <!-- GitHub配置区域 -->
-                            <div class="card github-section mb-4">
-                                <div class="card-header">
-                                    <h6><i class="bi bi-github"></i> GitHub配置</h6>
-                                </div>
-                                <div class="card-body">
-                                    <div class="mb-3">
-                                        <label for="github_token" class="form-label">GitHub Token</label>
-                                        <input type="password" class="form-control" id="github_token" name="github_token" 
-                                               value="<?php echo htmlspecialchars($settings['github_token']); ?>" 
-                                               placeholder="输入GitHub Personal Access Token">
-                                        <div class="form-text">
-                                            需要在GitHub生成Personal Access Token，并授予repo权限
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="row">
-                                        <div class="col-md-4">
-                                            <div class="mb-3">
-                                                <label for="github_repo_owner" class="form-label">仓库所有者</label>
-                                                <input type="text" class="form-control" id="github_repo_owner" name="github_repo_owner" 
-                                                       value="<?php echo htmlspecialchars($settings['github_repo_owner']); ?>" 
-                                                       placeholder="用户名或组织名">
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="mb-3">
-                                                <label for="github_repo_name" class="form-label">仓库名称</label>
-                                                <input type="text" class="form-control" id="github_repo_name" name="github_repo_name" 
-                                                       value="<?php echo htmlspecialchars($settings['github_repo_name']); ?>" 
-                                                       placeholder="仓库名称">
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="mb-3">
-                                                <label for="github_repo_path" class="form-label">存储路径</label>
-                                                <input type="text" class="form-control" id="github_repo_path" name="github_repo_path" 
-                                                       value="<?php echo htmlspecialchars($settings['github_repo_path']); ?>" 
-                                                       placeholder="images">
-                                                <div class="form-text">
-                                                    图片在仓库中的存储目录
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                        <div class="mb-3">
+                            <label for="base_url" class="form-label">基础URL</label>
+                            <input type="url" class="form-control" id="base_url" name="base_url" 
+                                   value="<?php echo htmlspecialchars($settings['base_url']); ?>" 
+                                   placeholder="<?php echo detectBaseUrl(); ?>">
+                            <div class="form-text">
+                                用于生成图片的完整访问链接。留空则自动使用当前域名：<code><?php echo detectBaseUrl(); ?></code>
                             </div>
+                        </div>
+                    </div>
+                </div>
 
-                            <!-- WebDAV配置区域 -->
-                            <div class="card mb-4" style="border-left: 4px solid #17a2b8;">
-                                <div class="card-header">
-                                    <h6><i class="bi bi-cloud"></i> WebDAV配置</h6>
-                                </div>
-                                <div class="card-body">
-                                    <div class="mb-3">
-                                        <label for="webdav_url" class="form-label">WebDAV服务器地址</label>
-                                        <input type="url" class="form-control" id="webdav_url" name="webdav_url" 
-                                               value="<?php echo htmlspecialchars($settings['webdav_url']); ?>" 
-                                               placeholder="https://dav.example.com/webdav">
-                                        <div class="form-text">
-                                            WebDAV服务器的完整URL地址
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="row">
-                                        <div class="col-md-4">
-                                            <div class="mb-3">
-                                                <label for="webdav_username" class="form-label">用户名</label>
-                                                <input type="text" class="form-control" id="webdav_username" name="webdav_username" 
-                                                       value="<?php echo htmlspecialchars($settings['webdav_username']); ?>" 
-                                                       placeholder="WebDAV用户名">
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="mb-3">
-                                                <label for="webdav_password" class="form-label">密码</label>
-                                                <input type="password" class="form-control" id="webdav_password" name="webdav_password" 
-                                                       value="<?php echo htmlspecialchars($settings['webdav_password']); ?>" 
-                                                       placeholder="WebDAV密码">
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="mb-3">
-                                                <label for="webdav_path" class="form-label">存储路径</label>
-                                                <input type="text" class="form-control" id="webdav_path" name="webdav_path" 
-                                                       value="<?php echo htmlspecialchars($settings['webdav_path']); ?>" 
-                                                       placeholder="images">
-                                                <div class="form-text">
-                                                    图片在WebDAV服务器中的存储目录
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                <!-- 上传权限配置 -->
+                <div class="card" style="border-left: 4px solid #dc3545;">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-shield-alt me-2"></i>上传权限配置</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="require_login" name="require_login" value="1"
+                                       <?php echo $settings['require_login'] ? 'checked' : ''; ?>>
+                                <label class="form-check-label" for="require_login">
+                                    <strong>拒绝游客上传</strong>
+                                </label>
                             </div>
+                            <div class="form-text">
+                                启用后，未登录用户将无法上传图片，必须先登录管理员账户
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-                            <!-- 域名配置区域 -->
-                            <div class="card domain-section mb-4">
-                                <div class="card-header">
-                                    <h6><i class="bi bi-globe"></i> 域名配置</h6>
-                                </div>
-                                <div class="card-body">
-                                    <div class="mb-3">
-                                        <label for="base_url" class="form-label">基础URL</label>
-                                        <input type="url" class="form-control" id="base_url" name="base_url" 
-                                               value="<?php echo htmlspecialchars($settings['base_url']); ?>" 
-                                               placeholder="<?php echo detectBaseUrl(); ?>">
-                                        <div class="form-text">
-                                            用于生成图片的完整访问链接。留空则自动使用当前域名：<code><?php echo detectBaseUrl(); ?></code>
-                                        </div>
+                <!-- 背景图配置 -->
+                <div class="card" style="border-left: 4px solid #8b5cf6;">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-image me-2"></i>背景图设置</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">当前背景图</label>
+                            <div class="mb-2">
+                                <?php if (!empty($settings['bg_image']) && file_exists('assets/img/' . $settings['bg_image'])): ?>
+                                    <img src="assets/img/<?php echo $settings['bg_image']; ?>" class="img-fluid rounded border" style="max-height:120px;object-fit:cover;width:100%;">
+                                    <div class="mt-2">
+                                        <label class="form-check-label">
+                                            <input type="checkbox" name="remove_bg" value="1"> 删除自定义背景图，恢复默认
+                                        </label>
                                     </div>
-                                </div>
+                                <?php else: ?>
+                                    <div class="text-muted small py-3 text-center border rounded bg-light">使用默认背景图</div>
+                                    <img src="assets/img/bg.jpg" class="img-fluid rounded border mt-2" style="max-height:80px;object-fit:cover;width:100%;">
+                                <?php endif; ?>
                             </div>
-
-                            <!-- 存储配置区域 -->
-                            <div class="card mb-4" style="border-left: 4px solid #6f42c1;">
-                                <div class="card-header">
-                                    <h6><i class="bi bi-hdd-stack"></i> 存储配置</h6>
-                                </div>
-                                <div class="card-body">
-                                    <div class="mb-3">
-                                        <label class="form-label">默认存储类型</label>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="default_storage" id="storage_local" value="local"
-                                                   <?php echo ($settings['default_storage'] ?? 'local') === 'local' ? 'checked' : ''; ?>>
-                                            <label class="form-check-label" for="storage_local">
-                                                <strong>本地存储</strong> - 图片保存在服务器本地
-                                            </label>
-                                        </div>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="default_storage" id="storage_github" value="github"
-                                                   <?php echo ($settings['default_storage'] ?? 'local') === 'github' ? 'checked' : ''; ?>
-                                                   <?php echo empty($settings['github_token']) || empty($settings['github_repo_owner']) || empty($settings['github_repo_name']) ? 'disabled' : ''; ?>>
-                                            <label class="form-check-label" for="storage_github">
-                                                <strong>GitHub存储</strong> - 图片上传到GitHub仓库
-                                                <?php if (empty($settings['github_token']) || empty($settings['github_repo_owner']) || empty($settings['github_repo_name'])): ?>
-                                                    <span class="badge bg-warning text-dark ms-2">需先配置GitHub</span>
-                                                <?php endif; ?>
-                                            </label>
-                                        </div>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="default_storage" id="storage_webdav" value="webdav"
-                                                   <?php echo ($settings['default_storage'] ?? 'local') === 'webdav' ? 'checked' : ''; ?>
-                                                   <?php echo empty($settings['webdav_url']) || empty($settings['webdav_username']) || empty($settings['webdav_password']) ? 'disabled' : ''; ?>>
-                                            <label class="form-check-label" for="storage_webdav">
-                                                <strong>WebDAV存储</strong> - 图片上传到WebDAV服务器
-                                                <?php if (empty($settings['webdav_url']) || empty($settings['webdav_username']) || empty($settings['webdav_password'])): ?>
-                                                    <span class="badge bg-info text-dark ms-2">需先配置WebDAV</span>
-                                                <?php endif; ?>
-                                            </label>
-                                        </div>
-                                        <div class="form-text">
-                                            选择图片的默认存储位置。如果选择的存储方式配置不完整，系统将自动使用本地存储。
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- 上传权限配置区域 -->
-                            <div class="card mb-4" style="border-left: 4px solid #dc3545;">
-                                <div class="card-header">
-                                    <h6><i class="bi bi-shield-lock"></i> 上传权限配置</h6>
-                                </div>
-                                <div class="card-body">
-                                    <div class="mb-3">
-                                        <div class="form-check form-switch">
-                                            <input class="form-check-input" type="checkbox" id="require_login" name="require_login" value="1"
-                                                   <?php echo $settings['require_login'] ? 'checked' : ''; ?>>
-                                            <label class="form-check-label" for="require_login">
-                                                <strong>拒绝游客上传</strong>
-                                            </label>
-                                        </div>
-                                        <div class="form-text">
-                                            启用后，未登录用户将无法上传图片，必须先登录管理员账户
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- 背景图配置区域 -->
-                            <div class="card mb-4" style="border-left: 4px solid #8b5cf6;">
-                                <div class="card-header">
-                                    <h6><i class="bi bi-image"></i> 背景图设置</h6>
-                                </div>
-                                <div class="card-body">
-                                    <div class="mb-3">
-                                        <label class="form-label">当前背景图</label>
-                                        <div class="mb-2">
-                                            <?php if (!empty($settings['bg_image']) && file_exists('assets/img/' . $settings['bg_image'])): ?>
-                                                <img src="assets/img/<?php echo $settings['bg_image']; ?>" class="img-fluid rounded border" style="max-height:120px;object-fit:cover;width:100%;">
-                                                <div class="mt-2">
-                                                    <label class="form-check-label">
-                                                        <input type="checkbox" name="remove_bg" value="1"> 删除自定义背景图，恢复默认
-                                                    </label>
-                                                </div>
-                                            <?php else: ?>
-                                                <div class="text-muted small py-3 text-center border rounded bg-light">使用默认背景图</div>
-                                                <img src="assets/img/bg.jpg" class="img-fluid rounded border mt-2" style="max-height:80px;object-fit:cover;width:100%;">
-                                            <?php endif; ?>
-                                        </div>
-                                    </div>
-                                    <div class="mb-2">
-                                        <label for="bg_image_file" class="form-label">上传新背景图</label>
-                                        <input type="file" class="form-control form-control-sm" id="bg_image_file" name="bg_image" accept="image/*">
-                                        <div class="form-text">推荐尺寸 1920×1080，支持 JPG/PNG/GIF/WebP</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="d-flex justify-content-between">
-                                <a href="admin.php" class="btn btn-outline-secondary">
-                                    <i class="bi bi-arrow-left"></i> 返回管理后台
-                                </a>
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="bi bi-check-lg"></i> 保存设置
-                                </button>
-                            </div>
-                        </form>
+                        </div>
+                        <div class="mb-2">
+                            <label for="bg_image_file" class="form-label">上传新背景图</label>
+                            <input type="file" class="form-control form-control-sm" id="bg_image_file" name="bg_image" accept="image/*">
+                            <div class="form-text">推荐尺寸 1920×1080，支持 JPG/PNG/GIF/WebP</div>
+                        </div>
                     </div>
                 </div>
 
                 <!-- 当前配置信息 -->
-                <div class="card mt-4">
+                <div class="card mb-4">
                     <div class="card-header">
-                        <h6><i class="bi bi-info-circle"></i> 当前配置信息</h6>
+                        <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>当前配置信息</h5>
                     </div>
                     <div class="card-body p-0">
                         <div class="table-responsive">
@@ -417,24 +292,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <?php
                                     $items = [];
 
-                                    $ghOk = !empty($settings['github_token']) && !empty($settings['github_repo_owner']) && !empty($settings['github_repo_name']);
-                                    $items[] = ['label' => 'GitHub', 'value' => $ghOk ? $settings['github_repo_owner'] . '/' . $settings['github_repo_name'] : '未配置', 'status' => $ghOk ? 'success' : 'danger'];
-
-                                    $wdOk = !empty($settings['webdav_url']) && !empty($settings['webdav_username']) && !empty($settings['webdav_password']);
-                                    $items[] = ['label' => 'WebDAV', 'value' => $wdOk ? htmlspecialchars($settings['webdav_url']) : '未配置', 'status' => $wdOk ? 'success' : 'danger'];
-
-                                    $defaultStorage = $settings['default_storage'] ?? 'local';
-                                    $storageMap = ['local' => '本地存储', 'github' => 'GitHub存储', 'webdav' => 'WebDAV存储'];
-                                    $storageLabel = $storageMap[$defaultStorage] ?? '本地存储';
-                                    $storageStatus = 'primary';
-                                    if ($defaultStorage === 'webdav' && !$wdOk) { $storageLabel = 'WebDAV存储（配置不完整，回退本地）'; $storageStatus = 'warning'; }
-                                    if ($defaultStorage === 'github' && !$ghOk) { $storageLabel = 'GitHub存储（配置不完整，回退本地）'; $storageStatus = 'warning'; }
-                                    $items[] = ['label' => '默认存储', 'value' => $storageLabel, 'status' => $storageStatus];
-
                                     $items[] = ['label' => '基础URL', 'value' => empty($settings['base_url']) ? '未配置' : $settings['base_url'], 'status' => empty($settings['base_url']) ? 'danger' : 'success'];
-                                    $items[] = ['label' => '配置文件', 'value' => file_exists($settingsFile) ? '已创建' : '未创建', 'status' => file_exists($settingsFile) ? 'success' : 'danger'];
-                                    $items[] = ['label' => '登录要求', 'value' => $settings['require_login'] ? '已启用（需登录上传）' : '未启用（允许匿名上传）', 'status' => $settings['require_login'] ? 'danger' : 'success'];
+                                    $items[] = ['label' => '登录要求', 'value' => $settings['require_login'] ? '已启用（需登录上传）' : '未启用（允许匿名上传）', 'status' => $settings['require_login'] ? 'warning' : 'success'];
                                     $items[] = ['label' => '背景图', 'value' => !empty($settings['bg_image']) ? '自定义' : '默认', 'status' => !empty($settings['bg_image']) ? 'success' : 'secondary'];
+                                    $items[] = ['label' => '配置文件', 'value' => file_exists($settingsFile) ? '已创建' : '未创建', 'status' => file_exists($settingsFile) ? 'success' : 'danger'];
                                     ?>
                                     <?php foreach ($items as $item): ?>
                                     <tr>
@@ -452,10 +313,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
+
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <button type="submit" name="regenerate_thumbs" value="1" class="btn btn-outline-secondary btn-sm" onclick="return confirm('确定重新生成所有已有图片的缩略图吗？')">
+                            <i class="fas fa-sync-alt me-1"></i> 重新生成所有缩略图
+                        </button>
+                    </div>
+                    <button type="submit" name="save_settings" value="1" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>保存设置
+                    </button>
+                </div>
+            </form>
+        </main>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="assets/js/admin.js"></script>
 </body>
 </html>
