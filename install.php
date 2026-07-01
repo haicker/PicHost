@@ -887,12 +887,18 @@ function initializeDatabase() {
         </div>
         
         <div class="step-indicator">
-            <?php for ($i = 1; $i <= 5; $i++): ?>
-                <div class="step <?php echo $i == $step ? 'active' : ($i < $step ? 'completed' : ''); ?>">
+            <?php
+            // 只显示3个步骤（环境检查、数据库配置、管理员配置）
+            // 步骤4（确认）和步骤5（完成）不算在步骤指示器中
+            $totalSteps = 3;
+            $displayStep = min($step, $totalSteps);
+            ?>
+            <?php for ($i = 1; $i <= $totalSteps; $i++): ?>
+                <div class="step <?php echo $step >= 4 ? 'completed' : ($i == $step ? 'active' : ($i < $step ? 'completed' : '')); ?>">
                     <?php echo $i; ?>
                 </div>
-                <?php if ($i < 5): ?>
-                    <div class="step-line <?php echo $i < $step ? 'completed' : ''; ?>"></div>
+                <?php if ($i < $totalSteps): ?>
+                    <div class="step-line <?php echo ($step >= 4) || ($i < $step) ? 'completed' : ''; ?>"></div>
                 <?php endif; ?>
             <?php endfor; ?>
         </div>
