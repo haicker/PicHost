@@ -96,26 +96,17 @@ $currentPage = 'images';
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="assets/css/admin.css" rel="stylesheet">
 </head>
-<body<?php if (!empty($settings['bg_image']) && file_exists('assets/img/' . $settings['bg_image'])): ?> style="background-image: linear-gradient(135deg, rgba(14, 165, 233, 0.8), rgba(59, 130, 246, 0.8)), url('assets/img/<?php echo $settings['bg_image']; ?>') !important;"<?php endif; ?>>
-    <nav class="navbar navbar-expand-lg navbar-dark">
-        <div class="container-fluid">
-            <button class="sidebar-toggle" onclick="toggleSidebar()">
-                <i class="fas fa-bars"></i>
-            </button>
-            <a class="navbar-brand" href="admin.php">
-                <i class="fas fa-images"></i> PicHost
-            </a>
-            <div class="navbar-nav ms-auto d-none d-lg-flex">
-                <a class="nav-link" href="index.php"><i class="fas fa-globe me-1"></i>返回前台</a>
-            </div>
-        </div>
-    </nav>
+<body>
+    <button class="sidebar-toggle-btn" onclick="toggleSidebar()">
+        <i class="fas fa-bars"></i>
+    </button>
 
     <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
 
     <div class="admin-wrapper">
         <aside class="admin-sidebar" id="adminSidebar">
             <div class="sidebar-brand">
+                <button class="sidebar-close-btn" onclick="toggleSidebar()">&times;</button>
                 <h5>PicHost</h5>
                 <small>图床管理后台</small>
             </div>
@@ -154,20 +145,13 @@ $currentPage = 'images';
             </ul>
 
             <div class="sidebar-footer">
-                <div class="user-info">
-                    <div class="user-avatar">
-                        <?php echo strtoupper(mb_substr($_SESSION['admin_username'], 0, 1)); ?>
-                    </div>
-                    <div class="user-name"><?php echo htmlspecialchars($_SESSION['admin_username']); ?></div>
+                <div class="user-avatar">
+                    <?php echo strtoupper(mb_substr($_SESSION['admin_username'], 0, 1)); ?>
                 </div>
-                <div class="sidebar-actions">
-                    <a href="index.php" class="btn btn-outline-light btn-sm">
-                        <i class="fas fa-home me-1"></i>前台
-                    </a>
-                    <a href="admin.php?action=logout" class="btn btn-outline-light btn-sm">
-                        <i class="fas fa-sign-out-alt me-1"></i>退出
-                    </a>
-                </div>
+                <span class="user-name"><?php echo htmlspecialchars($_SESSION['admin_username']); ?></span>
+                <a href="admin.php?action=logout" class="btn btn-sm btn-logout" title="退出">
+                    <i class="fas fa-sign-out-alt"></i>
+                </a>
             </div>
         </aside>
 
@@ -179,123 +163,85 @@ $currentPage = 'images';
                 </div>
             <?php endif; ?>
 
-            <!-- 统计信息 -->
-            <div class="row mb-4">
-                <div class="col-md-4">
-                    <div class="card stat-card">
-                        <div class="card-body text-center py-3">
-                            <div class="text-muted small mb-1"><i class="fas fa-images me-1"></i>图片总数</div>
-                            <div class="h4 mb-0 fw-bold text-primary"><?php echo $totalImages; ?></div>
+            <div class="row">
+                <div class="col-lg-3 mb-4">
+                    <!-- 批量上传 -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-cloud-upload-alt me-2"></i>批量上传</h5>
                         </div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="card stat-card">
-                        <div class="card-body text-center py-3">
-                            <div class="text-muted small mb-1"><i class="fas fa-database me-1"></i>总大小</div>
-                            <div class="h4 mb-0 fw-bold text-info"><?php echo formatFileSize($totalSize); ?></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="card stat-card">
-                        <div class="card-body text-center py-3">
-                            <div class="text-muted small mb-1"><i class="fas fa-server me-1"></i>存储方式</div>
-                            <div class="h6 mb-0 fw-bold">
-                                <?php
-                                $defaultStorage = $settings['default_storage'] ?? 'local';
-                                $storageLabels = [
-                                    'local' => '本地存储',
-                                    'github' => 'GitHub存储',
-                                    'webdav' => 'WebDAV存储',
-                                    'telegram' => 'Telegram存储'
-                                ];
-                                echo $storageLabels[$defaultStorage] ?? '本地存储';
-                                ?>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <input type="text" class="form-control form-control-sm mb-2" id="batchTags" placeholder="标签（可选，所有图片共用）">
+                                <div class="d-flex gap-2">
+                                    <input type="file" class="d-none" id="batchFileInput" accept="image/*" multiple>
+                                    <button class="btn btn-outline-primary btn-sm flex-fill" onclick="document.getElementById('batchFileInput').click()">
+                                        <i class="fas fa-images me-1"></i> <span id="batchFileLabel">选择图片</span>
+                                    </button>
+                                    <button class="btn btn-primary btn-sm" id="batchUploadBtn" onclick="startBatchUpload()" disabled>
+                                        <i class="fas fa-upload me-1"></i> 上传
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="batchProgress" style="display: none;">
+                                <div class="d-flex justify-content-between small mb-1">
+                                    <span id="batchStatus">准备中...</span>
+                                    <span id="batchCount">0 / 0</span>
+                                </div>
+                                <div class="progress mb-1" style="height: 4px;">
+                                    <div class="progress-bar" id="batchProgressBar" style="width: 0%"></div>
+                                </div>
+                                <div id="batchResults" class="small" style="max-height: 150px; overflow-y: auto;"></div>
                             </div>
                         </div>
                     </div>
-                </div>
-            </div>
 
-            <!-- 批量上传 -->
-            <div class="card mb-4">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0"><i class="fas fa-cloud-upload-alt me-2"></i>批量上传</h5>
-                    <div class="btn-group btn-group-sm">
-                        <button class="btn btn-outline-light" onclick="toggleView('grid')">
-                            <i class="fas fa-th-large"></i> 网格
-                        </button>
-                        <button class="btn btn-outline-light" onclick="toggleView('list')">
-                            <i class="fas fa-list"></i> 列表
-                        </button>
-                    </div>
-                </div>
-                <div class="card-body">
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <div class="d-flex gap-2">
-                                <input type="text" class="form-control form-control-sm" id="batchTags" placeholder="标签（可选，所有图片共用）">
-                                <input type="file" class="d-none" id="batchFileInput" accept="image/*" multiple>
-                                <button class="btn btn-outline-primary btn-sm" onclick="document.getElementById('batchFileInput').click()">
-                                    <i class="fas fa-images me-1"></i> <span id="batchFileLabel">选择图片</span>
-                                </button>
-                                <button class="btn btn-primary btn-sm" id="batchUploadBtn" onclick="startBatchUpload()" disabled>
-                                    <i class="fas fa-upload me-1"></i> 上传
-                                </button>
-                            </div>
+                    <!-- 标签管理 -->
+                    <div class="card mt-3">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-tags me-2"></i>标签管理</h5>
                         </div>
-                        <div class="col-md-6 text-end">
-                            <button class="btn btn-outline-danger btn-sm" onclick="clearAllImages()">
-                                <i class="fas fa-trash me-1"></i> 清空所有图片
-                            </button>
-                        </div>
-                    </div>
-                    <div id="batchProgress" style="display: none;">
-                        <div class="d-flex justify-content-between small mb-1">
-                            <span id="batchStatus">准备中...</span>
-                            <span id="batchCount">0 / 0</span>
-                        </div>
-                        <div class="progress mb-1" style="height: 4px;">
-                            <div class="progress-bar" id="batchProgressBar" style="width: 0%"></div>
-                        </div>
-                        <div id="batchResults" class="small" style="max-height: 150px; overflow-y: auto;"></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 图片列表 -->
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0"><i class="fas fa-images me-2"></i>图片管理</h5>
-                    <div class="text-white small">
-                        <?php if ($selectedTag && $selectedTag !== 'all'): ?>
-                            筛选: <strong><?php echo htmlspecialchars($selectedTag); ?></strong>
-                            <a href="?tag=all" class="btn btn-sm btn-outline-light ms-2 py-0">
-                                <i class="fas fa-times me-1"></i>清除
-                            </a>
-                        <?php else: ?>
-                            共 <strong><?php echo $totalImages; ?></strong> 张
-                        <?php endif; ?>
-                    </div>
-                </div>
-                <div class="card-body">
-                    <!-- 标签筛选 -->
-                    <div class="mb-3">
-                        <div class="d-flex flex-wrap gap-1">
-                            <a href="?tag=all" class="btn btn-<?php echo empty($selectedTag) || $selectedTag === 'all' ? 'primary' : 'outline-primary'; ?> btn-sm">
-                                <i class="fas fa-images me-1"></i>全部
-                            </a>
+                        <div class="card-body">
                             <?php if (!empty($allTags)): ?>
+                            <div class="d-flex flex-wrap gap-1">
+                                <a href="?tag=all" class="btn btn-<?php echo empty($selectedTag) || $selectedTag === 'all' ? 'primary' : 'outline-primary'; ?> btn-sm">
+                                    全部
+                                </a>
                                 <?php foreach ($allTags as $tag): ?>
-                                    <a href="?tag=<?php echo urlencode($tag); ?>" class="btn btn-<?php echo $selectedTag === $tag ? 'primary' : 'outline-primary'; ?> btn-sm">
-                                        <i class="fas fa-tag me-1"></i><?php echo htmlspecialchars($tag); ?>
-                                    </a>
+                                <a href="?tag=<?php echo urlencode($tag); ?>" class="btn btn-<?php echo $selectedTag === $tag ? 'primary' : 'outline-primary'; ?> btn-sm">
+                                    <?php echo htmlspecialchars($tag); ?>
+                                </a>
                                 <?php endforeach; ?>
+                            </div>
+                            <?php else: ?>
+                            <div class="text-center py-3 text-muted small">
+                                <i class="fas fa-inbox mb-1"></i>
+                                <p class="mb-0">暂无标签</p>
+                            </div>
                             <?php endif; ?>
                         </div>
                     </div>
+                </div>
 
+                <div class="col-lg-9 mb-4 d-flex flex-column">
+                    <!-- 图片列表 -->
+                    <div class="card flex-fill d-flex flex-column">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="fas fa-images me-2"></i>图片管理</h5>
+                            <div>
+                                <span class="small">
+                                    <?php if ($selectedTag && $selectedTag !== 'all'): ?>
+                                        筛选: <strong><?php echo htmlspecialchars($selectedTag); ?></strong>
+                                        <a href="?tag=all" class="btn btn-sm btn-outline-primary ms-1 py-0">
+                                            <i class="fas fa-times"></i>
+                                        </a>
+                                    <?php else: ?>
+                                        共 <strong><?php echo $totalImages; ?></strong> 张
+                                    <?php endif; ?>
+                                </span>
+                            </div>
+                        </div>
+                <div class="card-body flex-fill overflow-auto">
                     <?php if (empty($images)): ?>
                         <div class="text-center py-5">
                             <i class="fas fa-inbox display-1 text-muted"></i>
@@ -436,8 +382,6 @@ $currentPage = 'images';
                             </div>
                         </div>
                     <?php endif; ?>
-                </div>
-            </div>
 
             <?php if ($totalPages > 1): ?>
             <nav class="mt-4 d-flex justify-content-center">
@@ -460,6 +404,10 @@ $currentPage = 'images';
                 </ul>
             </nav>
             <?php endif; ?>
+                </div>
+            </div>
+                </div>
+            </div>
         </main>
     </div>
 

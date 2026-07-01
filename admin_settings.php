@@ -94,6 +94,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $message = '错误：设置保存失败';
         }
     }
+
+    if (isset($_POST['change_password'])) {
+        $currentPassword = $_POST['current_password'] ?? '';
+        $newPassword = $_POST['new_password'] ?? '';
+        $confirmPassword = $_POST['confirm_password'] ?? '';
+
+        if (!password_verify($currentPassword, ADMIN_PASSWORD) && $currentPassword !== ADMIN_PASSWORD) {
+            $message = '错误：当前密码不正确';
+        } elseif (strlen($newPassword) < 6) {
+            $message = '错误：新密码长度不能少于6位';
+        } elseif ($newPassword !== $confirmPassword) {
+            $message = '错误：两次输入的新密码不一致';
+        } else {
+            $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
+            $configContent = file_get_contents('config/config.php');
+            $pattern = "/define\\('ADMIN_PASSWORD', '.*?'\\)/";
+            $replacement = "define('ADMIN_PASSWORD', '" . str_replace("'", "\\'", $hashedPassword) . "')";
+            if (preg_match($pattern, $configContent)) {
+                $configContent = preg_replace($pattern, $replacement, $configContent);
+                if (file_put_contents('config/config.php', $configContent)) {
+                    $message = '密码修改成功！';
+                } else {
+                    $message = '错误：密码修改失败，请检查文件写入权限';
+                }
+            } else {
+                $message = '错误：配置文件结构异常';
+            }
+        }
+    }
 }
 
 // 重新生成所有缩略图
@@ -131,25 +160,16 @@ $currentPage = 'settings';
     <link href="assets/css/admin.css" rel="stylesheet">
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark">
-        <div class="container-fluid">
-            <button class="sidebar-toggle" onclick="toggleSidebar()">
-                <i class="fas fa-bars"></i>
-            </button>
-            <a class="navbar-brand" href="admin.php">
-                <i class="fas fa-images"></i> PicHost
-            </a>
-            <div class="navbar-nav ms-auto d-none d-lg-flex">
-                <a class="nav-link" href="index.php"><i class="fas fa-globe me-1"></i>返回前台</a>
-            </div>
-        </div>
-    </nav>
+    <button class="sidebar-toggle-btn" onclick="toggleSidebar()">
+        <i class="fas fa-bars"></i>
+    </button>
 
     <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
 
     <div class="admin-wrapper">
         <aside class="admin-sidebar" id="adminSidebar">
             <div class="sidebar-brand">
+                <button class="sidebar-close-btn" onclick="toggleSidebar()">&times;</button>
                 <h5>PicHost</h5>
                 <small>图床管理后台</small>
             </div>
@@ -185,20 +205,13 @@ $currentPage = 'settings';
             </ul>
 
             <div class="sidebar-footer">
-                <div class="user-info">
-                    <div class="user-avatar">
-                        <?php echo strtoupper(mb_substr($_SESSION['admin_username'], 0, 1)); ?>
-                    </div>
-                    <div class="user-name"><?php echo htmlspecialchars($_SESSION['admin_username']); ?></div>
+                <div class="user-avatar">
+                    <?php echo strtoupper(mb_substr($_SESSION['admin_username'], 0, 1)); ?>
                 </div>
-                <div class="sidebar-actions">
-                    <a href="index.php" class="btn btn-outline-light btn-sm">
-                        <i class="fas fa-home me-1"></i>前台
-                    </a>
-                    <a href="admin.php?action=logout" class="btn btn-outline-light btn-sm">
-                        <i class="fas fa-sign-out-alt me-1"></i>退出
-                    </a>
-                </div>
+                <span class="user-name"><?php echo htmlspecialchars($_SESSION['admin_username']); ?></span>
+                <a href="admin.php?action=logout" class="btn btn-sm btn-logout" title="退出">
+                    <i class="fas fa-sign-out-alt"></i>
+                </a>
             </div>
         </aside>
 
@@ -280,36 +293,23 @@ $currentPage = 'settings';
                     </div>
                 </div>
 
-                <!-- 当前配置信息 -->
-                <div class="card mb-4">
+                <!-- 密码修改 -->
+                <div class="card" style="border-left: 4px solid #64748b;">
                     <div class="card-header">
-                        <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>当前配置信息</h5>
+                        <h5 class="mb-0"><i class="fas fa-key me-2"></i>密码修改</h5>
                     </div>
-                    <div class="card-body p-0">
-                        <div class="table-responsive">
-                            <table class="table table-sm mb-0">
-                                <tbody>
-                                    <?php
-                                    $items = [];
-
-                                    $items[] = ['label' => '基础URL', 'value' => empty($settings['base_url']) ? '未配置' : $settings['base_url'], 'status' => empty($settings['base_url']) ? 'danger' : 'success'];
-                                    $items[] = ['label' => '登录要求', 'value' => $settings['require_login'] ? '已启用（需登录上传）' : '未启用（允许匿名上传）', 'status' => $settings['require_login'] ? 'warning' : 'success'];
-                                    $items[] = ['label' => '背景图', 'value' => !empty($settings['bg_image']) ? '自定义' : '默认', 'status' => !empty($settings['bg_image']) ? 'success' : 'secondary'];
-                                    $items[] = ['label' => '配置文件', 'value' => file_exists($settingsFile) ? '已创建' : '未创建', 'status' => file_exists($settingsFile) ? 'success' : 'danger'];
-                                    ?>
-                                    <?php foreach ($items as $item): ?>
-                                    <tr>
-                                        <td class="text-muted ps-3" style="width:100px;font-size:0.85rem;"><?php echo $item['label']; ?></td>
-                                        <td class="fw-medium" style="font-size:0.85rem;"><?php echo $item['value']; ?></td>
-                                        <td class="text-end pe-3" style="width:60px;">
-                                            <span class="badge bg-<?php echo $item['status']; ?> rounded-pill" style="font-size:0.65rem;">
-                                                <?php echo $item['status'] === 'success' ? '正常' : ($item['status'] === 'warning' ? '注意' : ($item['status'] === 'danger' ? '未配' : '-')); ?>
-                                            </span>
-                                        </td>
-                                    </tr>
-                                    <?php endforeach; ?>
-                                </tbody>
-                            </table>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="current_password" class="form-label">当前密码</label>
+                            <input type="password" class="form-control" id="current_password" name="current_password" placeholder="输入当前密码">
+                        </div>
+                        <div class="mb-3">
+                            <label for="new_password" class="form-label">新密码</label>
+                            <input type="password" class="form-control" id="new_password" name="new_password" placeholder="输入新密码（至少6位）">
+                        </div>
+                        <div class="mb-0">
+                            <label for="confirm_password" class="form-label">确认新密码</label>
+                            <input type="password" class="form-control" id="confirm_password" name="confirm_password" placeholder="再次输入新密码">
                         </div>
                     </div>
                 </div>
@@ -320,9 +320,14 @@ $currentPage = 'settings';
                             <i class="fas fa-sync-alt me-1"></i> 重新生成所有缩略图
                         </button>
                     </div>
-                    <button type="submit" name="save_settings" value="1" class="btn btn-primary">
-                        <i class="fas fa-save me-2"></i>保存设置
-                    </button>
+                    <div class="d-flex gap-2">
+                        <button type="submit" name="change_password" value="1" class="btn btn-outline-secondary">
+                            <i class="fas fa-key me-2"></i>修改密码
+                        </button>
+                        <button type="submit" name="save_settings" value="1" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>保存设置
+                        </button>
+                    </div>
                 </div>
             </form>
         </main>
