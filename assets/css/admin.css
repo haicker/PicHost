@@ -431,6 +431,37 @@ body {
   font-size: 0.75em;
 }
 
+/* ========== 标签交互 ========== */
+.tag-badge {
+  display: inline-flex;
+  align-items: center;
+  transition: opacity 0.15s ease;
+}
+
+.tag-remove-btn {
+  cursor: pointer;
+  vertical-align: middle;
+  user-select: none;
+}
+
+.tag-remove-btn:hover {
+  opacity: 1 !important;
+}
+
+.tag-add-btn {
+  user-select: none;
+}
+
+.tag-add-btn:hover {
+  background-color: #e2e8f0 !important;
+  color: #1e293b !important;
+}
+
+.tag-input-wrapper {
+  display: inline-flex;
+  align-items: center;
+}
+
 /* ========== 警告框样式 ========== */
 .alert {
   border: none;

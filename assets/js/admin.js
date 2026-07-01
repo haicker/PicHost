@@ -306,9 +306,287 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
+    // ===== 标签管理 =====
+    function getTagsFromContainer(container) {
+        const badges = container.querySelectorAll('.tag-badge');
+        return Array.from(badges).map(badge => {
+            return badge.childNodes[0].textContent.trim();
+        }).filter(t => t);
+    }
+
+    function updateImageTags(imageId, tags, container) {
+        const formData = new FormData();
+        formData.append('image_id', imageId);
+        formData.append('tags', tags.join(','));
+
+        return fetch('admin_actions.php?action=update_tags', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                renderTags(container, imageId, data.tags);
+                return true;
+            } else {
+                showAlert('标签更新失败：' + data.message);
+                return false;
+            }
+        })
+        .catch(error => {
+            showAlert('标签更新失败：' + error);
+            return false;
+        });
+    }
+
+    function renderTags(container, imageId, tags) {
+        const storageBadge = container.querySelector('[class*="bg-success"], [class*="bg-info"], [class*="bg-danger"], [class*="bg-warning"]:not(.tag-add-btn)');
+        const addBtn = container.querySelector('.tag-add-btn');
+
+        const existingBadges = container.querySelectorAll('.tag-badge');
+        existingBadges.forEach(b => b.remove());
+
+        const frag = document.createDocumentFragment();
+        tags.forEach(tag => {
+            const span = document.createElement('span');
+            span.className = 'badge bg-secondary me-1 tag-badge';
+            span.style.fontSize = '0.8rem';
+            span.style.paddingRight = '0.35em';
+            span.textContent = tag;
+
+            const removeSpan = document.createElement('span');
+            removeSpan.className = 'tag-remove-btn';
+            removeSpan.style.cssText = 'margin-left:4px; opacity:0.7; cursor:pointer; font-size:0.8em;';
+            removeSpan.textContent = '×';
+            span.appendChild(removeSpan);
+
+            frag.appendChild(span);
+        });
+
+        if (storageBadge) {
+            storageBadge.parentNode.insertBefore(frag, storageBadge.nextSibling);
+        } else if (addBtn) {
+            container.insertBefore(frag, addBtn);
+        } else {
+            container.insertBefore(frag, container.firstChild);
+        }
+    }
+
+    function getAllExistingTags() {
+        const allTags = new Set();
+        document.querySelectorAll('.tag-container').forEach(function(c) {
+            c.querySelectorAll('.tag-badge').forEach(function(b) {
+                const tag = b.childNodes[0].textContent.trim();
+                if (tag) allTags.add(tag);
+            });
+        });
+        return Array.from(allTags).sort();
+    }
+
+    function showTagInput(container, imageId) {
+        if (container.querySelector('.tag-input-wrapper')) return;
+
+        const allExistingTags = getAllExistingTags();
+        const currentTags = getTagsFromContainer(container);
+
+        const wrapper = document.createElement('span');
+        wrapper.className = 'tag-input-wrapper';
+        wrapper.style.cssText = 'display:inline-flex; flex-direction:column; position:relative;';
+
+        const inputRow = document.createElement('span');
+        inputRow.style.cssText = 'display:inline-flex; align-items:center;';
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'form-control form-control-sm tag-input';
+        input.style.cssText = 'width:80px; height:22px; padding:0 4px; font-size:0.7rem;';
+        input.placeholder = '标签';
+
+        const confirmBtn = document.createElement('button');
+        confirmBtn.type = 'button';
+        confirmBtn.className = 'btn btn-success btn-sm tag-input-confirm';
+        confirmBtn.style.cssText = 'height:22px; padding:0 6px; font-size:0.7rem; margin-left:2px;';
+        confirmBtn.innerHTML = '✓';
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.type = 'button';
+        cancelBtn.className = 'btn btn-secondary btn-sm tag-input-cancel';
+        cancelBtn.style.cssText = 'height:22px; padding:0 6px; font-size:0.7rem; margin-left:1px;';
+        cancelBtn.innerHTML = '✕';
+
+        inputRow.appendChild(input);
+        inputRow.appendChild(confirmBtn);
+        inputRow.appendChild(cancelBtn);
+        wrapper.appendChild(inputRow);
+
+        let dropdown = null;
+
+        function showDropdown() {
+            if (dropdown) dropdown.remove();
+            dropdown = null;
+
+            const val = input.value.trim().toLowerCase();
+            let tags = allExistingTags.filter(function(t) {
+                return !currentTags.includes(t) && (!val || t.toLowerCase().includes(val));
+            });
+
+            if (tags.length === 0) return;
+
+            dropdown = document.createElement('div');
+            dropdown.className = 'tag-dropdown';
+            dropdown.style.cssText = 'position:absolute; top:100%; left:0; z-index:1000; background:#fff; border:1px solid #dee2e6; border-radius:4px; box-shadow:0 2px 8px rgba(0,0,0,0.1); max-height:150px; overflow-y:auto; min-width:80px;';
+
+            tags.forEach(function(tag) {
+                const item = document.createElement('div');
+                item.className = 'tag-dropdown-item';
+                item.style.cssText = 'padding:4px 8px; font-size:0.7rem; cursor:pointer;';
+                item.textContent = tag;
+                item.addEventListener('mouseenter', function() {
+                    item.style.backgroundColor = '#e9ecef';
+                });
+                item.addEventListener('mouseleave', function() {
+                    item.style.backgroundColor = '';
+                });
+                item.addEventListener('click', function() {
+                    input.value = tag;
+                    if (dropdown) { dropdown.remove(); dropdown = null; }
+                    confirm();
+                });
+                dropdown.appendChild(item);
+            });
+
+            wrapper.appendChild(dropdown);
+        }
+
+        function hideDropdown() {
+            if (dropdown) { dropdown.remove(); dropdown = null; }
+        }
+
+        const addBtn = container.querySelector('.tag-add-btn');
+        container.insertBefore(wrapper, addBtn);
+
+        function cleanup() {
+            hideDropdown();
+            wrapper.remove();
+        }
+
+        function confirm() {
+            const val = input.value.trim();
+            if (!val) {
+                cleanup();
+                return;
+            }
+            const curTags = getTagsFromContainer(container);
+            if (curTags.includes(val)) {
+                cleanup();
+                return;
+            }
+            curTags.push(val);
+            updateImageTags(imageId, curTags, container).then(() => cleanup());
+        }
+
+        confirmBtn.addEventListener('click', confirm);
+        cancelBtn.addEventListener('click', cleanup);
+        input.addEventListener('input', showDropdown);
+        input.addEventListener('focus', showDropdown);
+        input.addEventListener('blur', function() {
+            setTimeout(hideDropdown, 150);
+        });
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') { e.preventDefault(); confirm(); }
+            if (e.key === 'Escape') { e.preventDefault(); cleanup(); }
+        });
+
+        input.focus();
+        showDropdown();
+    }
+
+    document.addEventListener('click', function(e) {
+        const container = e.target.closest('.tag-container');
+        if (!container) return;
+
+        const removeBtn = e.target.closest('.tag-remove-btn');
+        if (removeBtn) {
+            e.stopPropagation();
+            const badge = removeBtn.closest('.tag-badge');
+            const imageId = container.dataset.imageId;
+            const tagToRemove = badge.childNodes[0].textContent.trim();
+
+            badge.style.opacity = '0.3';
+            const currentTags = getTagsFromContainer(container).filter(t => t !== tagToRemove);
+            updateImageTags(imageId, currentTags, container);
+            return;
+        }
+
+        const addBtn = e.target.closest('.tag-add-btn');
+        if (addBtn) {
+            e.stopPropagation();
+            const imageId = container.dataset.imageId;
+            showTagInput(container, imageId);
+        }
+    });
+
     window.toggleView = toggleView;
     window.clearAllImages = clearAllImages;
     window.copyUrlToClipboardModal = copyUrlToClipboardModal;
+
+    window.deleteTag = function(tagName) {
+        if (!confirm('确定要删除标签「' + tagName + '」吗？\n\n此操作将从所有图片中移除该标签，不可恢复！')) {
+            return;
+        }
+
+        var fd = new FormData();
+        fd.append('tag', tagName);
+
+        fetch('admin_actions.php?action=delete_tag', {
+            method: 'POST',
+            body: fd
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert(data.message);
+                setTimeout(() => { window.location.href = '?tag=all'; }, 1000);
+            } else {
+                showAlert('删除失败：' + data.message);
+            }
+        })
+        .catch(error => {
+            showAlert('操作失败：' + error);
+        });
+    };
+
+    window.renameTag = function(oldTagName) {
+        var newTagName = prompt('将标签「' + oldTagName + '」重命名为：', oldTagName);
+        if (!newTagName || newTagName.trim() === '') {
+            return;
+        }
+        newTagName = newTagName.trim();
+        if (newTagName === oldTagName) {
+            return;
+        }
+
+        var fd = new FormData();
+        fd.append('old_tag', oldTagName);
+        fd.append('new_tag', newTagName);
+
+        fetch('admin_actions.php?action=rename_tag', {
+            method: 'POST',
+            body: fd
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert(data.message);
+                setTimeout(() => { window.location.href = '?tag=' + encodeURIComponent(newTagName); }, 1000);
+            } else {
+                showAlert('重命名失败：' + data.message);
+            }
+        })
+        .catch(error => {
+            showAlert('操作失败：' + error);
+        });
+    };
 
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('action') === 'logout') {

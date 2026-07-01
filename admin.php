@@ -59,7 +59,10 @@ if ($selectedTag && $selectedTag !== 'all') {
     $totalPages = max(1, ceil($tagCount / $perPage));
 
     $stmt = $db->prepare("SELECT id, filename, original_name, tags, file_size, mime_type, github_url, webdav_url, telegram_url, local_path, upload_time, storage_type FROM images WHERE tags LIKE ? ORDER BY upload_time DESC LIMIT ? OFFSET ?");
-    $stmt->execute(['%' . $selectedTag . '%', $perPage, $offset]);
+    $stmt->bindValue(1, '%' . $selectedTag . '%', PDO::PARAM_STR);
+    $stmt->bindValue(2, $perPage, PDO::PARAM_INT);
+    $stmt->bindValue(3, $offset, PDO::PARAM_INT);
+    $stmt->execute();
     $images = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     $baseUrl = rtrim(getConfig('base_url'), '/');
@@ -213,6 +216,16 @@ $currentPage = 'images';
                                 </a>
                                 <?php endforeach; ?>
                             </div>
+                            <?php if ($selectedTag && $selectedTag !== 'all'): ?>
+                            <div class="mt-3 pt-3 border-top">
+                                <button class="btn btn-outline-danger btn-sm w-100 mb-2" onclick="deleteTag('<?php echo htmlspecialchars($selectedTag, ENT_QUOTES); ?>')">
+                                    <i class="fas fa-trash me-1"></i>删除标签
+                                </button>
+                                <button class="btn btn-outline-warning btn-sm w-100" onclick="renameTag('<?php echo htmlspecialchars($selectedTag, ENT_QUOTES); ?>')">
+                                    <i class="fas fa-edit me-1"></i>标签重命名
+                                </button>
+                            </div>
+                            <?php endif; ?>
                             <?php else: ?>
                             <div class="text-center py-3 text-muted small">
                                 <i class="fas fa-inbox mb-1"></i>
@@ -269,24 +282,28 @@ $currentPage = 'images';
                                         <div class="card-body py-2 px-3">
                                             <h6 class="card-title fw-bold small mb-1"><?php echo htmlspecialchars($image['original_name']); ?></h6>
                                             
-                                            <div class="mb-1">
-                                                <?php if (!empty($image['tags'])): ?>
-                                                    <?php 
-                                                    $tagsArray = explode(',', $image['tags']);
-                                                    foreach ($tagsArray as $tag): 
-                                                        $tag = trim($tag);
-                                                        if (!empty($tag)):
-                                                    ?>
-                                                        <span class="badge bg-secondary me-1" style="font-size:0.7rem;"><?php echo htmlspecialchars($tag); ?></span>
-                                                    <?php 
-                                                        endif;
-                                                    endforeach; 
-                                                    ?>
-                                                <?php endif; ?>
-                                                <span class="badge bg-<?php echo $image['storage_type'] === 'github' ? 'success' : ($image['storage_type'] === 'webdav' ? 'info' : ($image['storage_type'] === 'telegram' ? 'danger' : 'warning')); ?>" style="font-size:0.65rem;">
-                                                    <?php echo $image['storage_type'] === 'github' ? 'GitHub' : ($image['storage_type'] === 'webdav' ? 'WebDAV' : ($image['storage_type'] === 'telegram' ? 'Telegram' : '本地')); ?>
-                                                </span>
-                                            </div>
+                                             <div class="mb-1 tag-container" data-image-id="<?php echo $image['id']; ?>">
+                                                 <span class="badge bg-<?php echo $image['storage_type'] === 'github' ? 'success' : ($image['storage_type'] === 'webdav' ? 'info' : ($image['storage_type'] === 'telegram' ? 'danger' : 'warning')); ?>" style="font-size:0.8rem;">
+                                                     <?php echo $image['storage_type'] === 'github' ? 'GitHub' : ($image['storage_type'] === 'webdav' ? 'WebDAV' : ($image['storage_type'] === 'telegram' ? 'Telegram' : '本地')); ?>
+                                                 </span>
+                                                 <?php if (!empty($image['tags'])): ?>
+                                                     <?php
+                                                     $tagsArray = explode(',', $image['tags']);
+                                                     foreach ($tagsArray as $tag):
+                                                         $tag = trim($tag);
+                                                         if (!empty($tag)):
+                                                     ?>
+                                                         <span class="badge bg-secondary me-1 tag-badge" style="font-size:0.8rem; padding-right:0.35em;">
+                                                             <?php echo htmlspecialchars($tag); ?>
+                                                             <span class="tag-remove-btn" style="margin-left:4px; opacity:0.7; cursor:pointer; font-size:0.8em;">×</span>
+                                                         </span>
+                                                     <?php
+                                                         endif;
+                                                     endforeach;
+                                                     ?>
+                                                 <?php endif; ?>
+                                                 <span class="badge border-0 bg-light text-dark tag-add-btn" style="font-size:0.8rem; cursor:pointer;" title="添加标签">+</span>
+                                             </div>
                                             
                                             <div class="small text-muted" style="font-size:0.75rem;">
                                                 <div><i class="fas fa-weight me-1"></i><?php echo formatFileSize($image['file_size']); ?> · <?php echo $image['mime_type']; ?></div>
@@ -338,23 +355,28 @@ $currentPage = 'images';
                                                          width="50" height="50" style="object-fit: cover; border-radius: 6px;" class="image-preview">
                                                 </td>
                                                 <td class="fw-bold"><?php echo htmlspecialchars($image['original_name']); ?></td>
-                                                <td>
-                                                    <?php if (!empty($image['tags'])): ?>
-                                                        <?php 
-                                                        $tagsArray = explode(',', $image['tags']);
-                                                        foreach ($tagsArray as $tag): 
-                                                            $tag = trim($tag);
-                                                            if (!empty($tag)):
-                                                        ?>
-                                                            <span class="badge bg-secondary me-1" style="font-size:0.65rem;"><?php echo htmlspecialchars($tag); ?></span>
-                                                        <?php 
-                                                            endif;
-                                                        endforeach; 
-                                                        ?>
-                                                    <?php else: ?>
-                                                        <span class="text-muted small">无标签</span>
-                                                    <?php endif; ?>
-                                                </td>
+                                                 <td class="tag-container" data-image-id="<?php echo $image['id']; ?>">
+                                                     <span class="badge bg-<?php echo $image['storage_type'] === 'github' ? 'success' : ($image['storage_type'] === 'webdav' ? 'info' : ($image['storage_type'] === 'telegram' ? 'danger' : 'warning')); ?>" style="font-size:0.8rem;">
+                                                         <?php echo $image['storage_type'] === 'github' ? 'GitHub' : ($image['storage_type'] === 'webdav' ? 'WebDAV' : ($image['storage_type'] === 'telegram' ? 'Telegram' : '本地')); ?>
+                                                     </span>
+                                                     <?php if (!empty($image['tags'])): ?>
+                                                         <?php
+                                                         $tagsArray = explode(',', $image['tags']);
+                                                         foreach ($tagsArray as $tag):
+                                                             $tag = trim($tag);
+                                                             if (!empty($tag)):
+                                                         ?>
+                                                             <span class="badge bg-secondary me-1 tag-badge" style="font-size:0.8rem; padding-right:0.35em;">
+                                                                 <?php echo htmlspecialchars($tag); ?>
+                                                                 <span class="tag-remove-btn" style="margin-left:4px; opacity:0.7; cursor:pointer; font-size:0.8em;">×</span>
+                                                             </span>
+                                                         <?php
+                                                             endif;
+                                                         endforeach;
+                                                         ?>
+                                                     <?php endif; ?>
+                                                     <span class="badge border-0 bg-light text-dark tag-add-btn" style="font-size:0.8rem; cursor:pointer;" title="添加标签">+</span>
+                                                 </td>
                                                 <td><?php echo formatFileSize($image['file_size']); ?></td>
                                                 <td><?php echo date('Y-m-d H:i', strtotime($image['upload_time'])); ?></td>
                                                 <td>
